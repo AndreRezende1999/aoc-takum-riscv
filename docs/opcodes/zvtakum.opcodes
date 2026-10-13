@@ -1,0 +1,19 @@
+# Zvtakum - encodings experimentais (formato riscv-opcodes), v0 do refactor C++.
+#
+# Espaço: custom-0 (6..0=0x0b), reservado pela ISA para extensões não padronizadas.
+# Não ocupa nenhuma posição de OP-V. A versão anterior usava funct6=0b111001 de OP-V
+# com base na premissa de que seria o único valor livre; o inventário do riscv-opcodes
+# (arquivos rv_v e rv_zv*) mostra vários valores livres por classe de operando, então
+# essa premissa não se sustenta e a codificação foi migrada.
+#
+# Operandos: vm (bit 25, 1 = sem máscara), vs2, vs1, vd seguem a convenção RVV.
+# funct3 = 0 em todas as instruções. vncvt.t.t exige vs1 = 0.
+# Números de funct6 idênticos a OPERATIONS em python/takum_rvv/vector.py.
+#
+# mnemonico     31..26=funct6 25=vm 24..20=vs2 19..15=vs1 14..12=0 11..7=vd 6..0=0x0b
+
+vtadd.vv      31..26=0 vm vs2 vs1 14..12=0 vd 6..0=0x0b
+vtsub.vv      31..26=1 vm vs2 vs1 14..12=0 vd 6..0=0x0b
+vtmul.vv      31..26=2 vm vs2 vs1 14..12=0 vd 6..0=0x0b
+vtdot.vv      31..26=3 vm vs2 vs1 14..12=0 vd 6..0=0x0b
+vncvt.t.t     31..26=4 vm vs2 00000 14..12=0 vd 6..0=0x0b

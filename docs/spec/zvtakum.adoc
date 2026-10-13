@@ -1,0 +1,125 @@
+= Zvtakum: especificação experimental (v0, branch refactor/zvtakum-cpp)
+:toc:
+:sectnums:
+
+Esta especificação descreve o que o simulador `src/` implementa. Não é uma extensão
+ratificada da RISC-V International. Os encodings e a semântica são propostas do projeto,
+validadas contra o modelo de referência descrito em `docs/arquitetura.md`.
+
+== Formato numérico
+
+Takum linear de largura n ∈ {8, 16, 32}, definido em Hunhold (arXiv:2404.18603v2,
+Def. 8). Um código de n bits é lido como:
+
+* S (sinal), D (direção), R (3 bits de regime), C (r bits de característica), F (p bits de fração), com r = R se D = 1 e r = 7 − R se D = 0, e p = n − 5 − r.
+* Para n < 12, a janela de decodificação tem 12 bits: o código recebe zeros fantasmas à direita.
+* Valor: (1 − 3S + F/2^p) · 2^e, com e = (−1)^S · (c + S), onde c = 2^r − 1 + C (D = 1) ou c = −2^(r+1) + 1 + C (D = 0).
+* NaR é o código `1000…0`. O zero é o código `0…0`. Não há infinito.
+* Negação é o complemento de dois do código.
+
+Acumulador de largura n = 2·SEW: T16 para T8, T32 para T16, T64 para T32. T64 não é exposto
+como elemento de registrador; ele só existe no acumulador de `vtdot.vv`.
+
+== Arredondamento (normativo)
+
+Para um valor exato v ≠ 0 com magnitude |v| e código positivo de n bits:
+
+1. Calcule o código de n+1 bits da magnitude (prefixo da cadeia infinita do código) e
+   o bit *sticky* (indica bits não nulos além do prefixo).
+2. Seja L o prefixo de n bits e m o bit de meio-ponto (último bit do prefixo de n+1 bits).
+3. Se m = 0, o resultado é L. Se m = 1, arredonde para L+1 quando o sticky estiver ativo
+   ou quando L for ímpar (empate para par no código).
+4. Limite o resultado ao intervalo [1, maxpos]: |v| > maxpos produz maxpos, e
+   0 < |v| < minpos produz minpos. Resultados exatamente zero produzem zero.
+5. Para v < 0, o código é o complemento de dois do código de |v|.
+
+O arredondamento é feito no código e não no valor. Por isso ele pode diferir do vizinho
+mais próximo em valor, como registrado em `docs/devlog.md` (D7). Este é o comportamento
+do modelo Python (`python/takum_rvv/codec.py`) e coincide com a libtakum para T8.
+
+== Codificação
+
+Todas as instruções usam o espaço custom-0 (`opcode = 0x0B`):
+
+[cols="1,1,1,4"]
+|===
+| Campo | Bits | Valor | Observação
+
+| funct6 | 31–26 | 0–4 | operação (ver tabela abaixo)
+| vm | 25 | 1 | 1 = sem máscara; 0 = máscara v0 (convenção da RVV)
+| vs2 | 24–20 | reg | operando 2
+| vs1 | 19–15 | reg | operando 1; em `vncvt.t.t` deve ser zero
+| funct3 | 14–12 | 0 | qualquer outro valor é ilegal
+| vd | 11–7 | reg | destino
+|===
+
+[cols="1,1,4"]
+|===
+| funct6 | Mnemônico | Operação
+
+| 0 | `vtadd.vv vd, vs2, vs1` | vd[i] = vs2[i] + vs1[i]
+| 1 | `vtsub.vv vd, vs2, vs1` | vd[i] = vs2[i] − vs1[i]
+| 2 | `vtmul.vv vd, vs2, vs1` | vd[i] = vs2[i] × vs1[i]
+| 3 | `vtdot.vv vd, vs2, vs1` | vd[0] = vd[0] + Σ vs2[i] × vs1[i]
+| 4 | `vncvt.t.t vd, vs2` | vd[i] = estreitamento de vs2[i] (de 2·SEW para SEW)
+|===
+
+Os números de funct6 coincidem com `OPERATIONS` em `python/takum_rvv/vector.py`.
+
+== Semântica
+
+=== Configuração
+
+SEW vem de `vtype` (8, 16 ou 32). As instruções Zvtakum são ilegais com SEW = 64.
+LMUL ∈ {1, 2, 4, 8}. LMUL fracionário ativa `vill`. ELEN = 64.
+
+=== Instruções elementares (`vtadd`, `vtsub`, `vtmul`)
+
+Para cada elemento i de `vstart` até `vl − 1`:
+
+* com máscara ativa: vd[i] recebe o resultado arredondado;
+* com máscara inativa: vd[i] segue `vma` (agnóstico = todos os bits em 1; não agnóstico = mantém o valor).
+
+Os elementos de `vl` até VLMAX−1 seguem `vta`: com `vta = 1` são preenchidos com 1s, e com `vta = 0`
+mantêm o valor anterior. A RVV 1.0 permite as duas escolhas para elementos agnósticos; o simulador adota 1s,
+e o QEMU só concorda com ele quando configurado com `rvv_ta_all_1s` e `rvv_ma_all_1s`. NaR se propaga; não
+há exceções nem flags.
+
+=== `vtdot.vv`
+
+* O acumulador é o elemento 0 de `vd`, com EEW = 2·SEW. `vd` ocupa um único registrador (EMUL = 1).
+* Para cada i ativo, em ordem crescente: p = arredonda_2n(vs2[i] × vs1[i]); acc = arredonda_2n(acc + p).
+* Só o elemento 0 é gravado. Os demais elementos do registrador seguem `vta`.
+* Com `vl = 0`, o acumulador não muda (com `vta = 0`).
+* `vstart ≠ 0` é ilegal.
+
+=== `vncvt.t.t`
+
+* A origem é um grupo de EEW = 2·SEW e EMUL = 2·LMUL, com base alinhada a 2·LMUL.
+* O destino tem SEW e LMUL. Elementos ativos são arredondados para o formato de SEW.
+* O campo vs1 deve ser zero, senão a instrução é ilegal.
+
+== Restrições da implementação
+
+As restrições abaixo são decisões do simulador, não da arquitetura:
+
+* Instruções vetoriais de ponto flutuante (`vfadd.vv`, `vfmul.vv`, `vfredusum.vs`) só existem com SEW = 32.
+* `vfredusum.vs` exige `vstart = 0`. A soma é sequencial em ordem crescente de índice.
+* Cargas e armazenamentos unitários exigem EEW = SEW. Cargas indexadas são só `vluxei32.v`, com índice de 32 bits.
+* Loads e stores aceitam apenas `mop = 0` (unitário) ou `mop = 1` (indexado), sem segmentos.
+* `vmv.v.v` e `vmv.v.i` existem apenas com `vm = 1`.
+* Zvfh (FP16 vetorial) é reconhecido pelo assembler, mas não é executado pelo simulador.
+
+== Estado arquitetural
+
+* CSRs de vetor: `vstart` (0x008), `vxsat` (0x009), `vxrm` (0x00A), `vcsr` (0x00F, leitura e escrita); `vl` (0xC20), `vtype` (0xC21) e `vlenb` (0xC22) são somente leitura.
+* Zvtakum não adiciona CSR. Não há modo de arredondamento nem flags acumuladas.
+* `vsetvli`, `vsetivli` e `vsetvl` seguem a RVV 1.0 (tabela de rd e rs1): com rs1 = x0 e rd ≠ x0, AVL = VLMAX; com rs1 = x0 e rd = x0, AVL = vl atual.
+* Modo máquina sem sistema operacional. `mstatus.VS` é tratado como ativo.
+
+== Verificação
+
+* Núcleo Takum: tabelas T8 completas, narrow T16→T8 completo, operações amostradas em T16/T32/T64 e vtdot amostrado (`tests/sim/test_main.cpp`, vetores em `tests/sim/golden/`).
+* Instruções padrão: teste diferencial com QEMU user-mode, byte a byte, para VLEN 128/256/512 (`tests/sim/difftest.py`).
+* Zvtakum: teste contra o modelo Python, byte a byte, para VLEN 128/256/512 (`tests/sim/gen_zvt.py`).
+* Kernels SpMV: saída igual bit a bit ao modelo Python (`scalar_spmv`), para FP32 e takum (`kernels/spmv.py`).

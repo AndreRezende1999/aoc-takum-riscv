@@ -1,0 +1,186 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{babel}
+\babelprovide[main]{english}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{xspace}
+
+\input{numeros.tex}
+
+\author{\IEEEauthorblockN{André Luís Alves Rezende, Gabriel Ramos Fontes\\
+Isadora Maria Carvalho Lopes, João Pedro Gonçalves de Noronha Dutra}
+\IEEEauthorblockA{Department of Electronic Engineering, Federal University of
+Minas Gerais, Belo Horizonte, Brazil}}
+
+\title{Takum Arithmetic in a RISC-V Vector Extension: Functional Simulation and SpMV Evaluation}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Low-precision formats add conversion, special-case, and decoding logic to vector
+instruction sets. Takum provides tapered precision, bounded dynamic range, and
+a shared 12-bit decoding window. This work proposes the experimental Zvtakum
+extension over RVV 1.0, with five custom-0 instructions for T8, T16, and T32.
+The arithmetic is implemented with integers and code-space round-to-nearest,
+ties-to-even. A functional RV64IM, Zicsr, RVV, and Zvtakum simulator is checked
+against QEMU for standard instructions and against an exact-rational Python
+model for Takum instructions and kernels. We evaluate sparse matrix--vector
+multiplication (SpMV) on eight Harwell--Boeing matrices using FP32 and Takum.
+The \NumExecSpmv\ kernel runs are bitwise equal to the reference model, and an
+analytic instruction-count model reproduces every run. FP8 and FP16 results
+are numerical baselines only: RVV 1.0 has no FP8, and Zvfh is not modeled.
+\end{abstract}
+
+\begin{IEEEkeywords}
+RISC-V, RVV, Takum arithmetic, Zvtakum, SpMV, functional simulator.
+\end{IEEEkeywords}
+
+\section{Introduction}
+Vector instruction sets increasingly support low-precision formats such as
+bfloat16, FP16, and OCP FP8. Each format requires conversions and special-case
+rules, while RVV 1.0 does not define FP8 and FP16 requires a separate extension
+\cite{riscv-v-spec,ofp8,bfloat16}. Takum is a tapered-precision format whose
+linear encoding uses a common 12-bit decoding window \cite{hunhold2024takum}.
+Hunhold's AVX10.2 study shows the potential of replacing several SIMD formats
+with a common Takum unit \cite{hunhold2025avx102}.
+
+This paper makes the analogous study for RISC-V/RVV. Its contributions are an
+integer Takum unit, five custom-0 vector instructions, a functional simulator
+verified against both QEMU and an independent exact model, SpMV kernels with a
+common measurement perimeter, and an instruction-count model. The scope is
+functional: there is no hardware synthesis, timing, area, energy, logarithmic
+Takum variant, or vector Zvfh implementation.
+
+\section{Related Works}
+Low-precision vector arithmetic includes FP16, bfloat16, and OCP FP8 E4M3/E5M2.
+These formats have IEEE-like exponent and special-value behavior, whereas RVV
+1.0 has no FP8 encoding and leaves FP16 to Zvfh. Takum and posits instead use
+tapered precision and a bounded representation \cite{gustafson2017posit,
+hunhold2024takum}. The present work evaluates both representation and vector
+instruction behavior, rather than only scalar conversion accuracy.
+
+Hunhold's AVX10.2 work studies a Takum unit in an x86 SIMD ISA
+\cite{hunhold2025avx102}; this work differs by targeting RISC-V/RVV, specifying
+custom-0 encodings, and measuring a functional simulator with explicit RVV
+tail and mask behavior. The simulator's arithmetic is integer-only and is
+checked against an exact-rational model, rather than relying on a C floating
+point intermediate. The VHDL codec provides related hardware evidence
+\cite{hunhold2024vhdl}.
+
+The evaluation uses libtakum as an external reference for T8
+\cite{libtakum}, QEMU and LLVM for standard RISC-V behavior
+\cite{qemu,llvm-mc}, and the Harwell--Boeing matrices
+\cite{duff1989hb}. MuFoLAB is relevant infrastructure for larger studies
+\cite{mufolab}, but the 1401-matrix experiment is outside this phase.
+
+\section{Methodology / Proposed Architecture}
+\subsection{Architecture}
+The modeled processor contains RV64IM and Zicsr, a subset of RVV 1.0, and the
+Zvtakum unit. Figure~\ref{fig:architecture} shows the path from custom-0
+decoding through the vector register file and the Takum unit.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[font=\scriptsize, node distance=4mm and 5mm,
+  box/.style={draw, rounded corners, align=center, minimum height=7mm,
+              inner sep=2pt}, arr/.style={-{Latex}, thick}]
+\node[box] (decode) {RV64IM + Zicsr\\custom-0 decoder};
+\node[box, right=of decode] (vrf) {Vector register\\file};
+\node[box, right=of vrf] (unit) {Takum unit\\12-bit decode\\integer ALU};
+\node[box, right=of unit] (enc) {Encoder\\code-space RNE};
+\draw[arr] (decode) -- (vrf);
+\draw[arr] (vrf) -- (unit);
+\draw[arr] (unit) -- (enc);
+\draw[arr] (enc) |- (vrf);
+\end{tikzpicture}
+\caption{Functional path of a Zvtakum instruction: custom-0 decoding selects
+vector operands, the integer Takum unit performs the operation, and the
+code-space RNE encoder writes the destination.}
+\label{fig:architecture}
+\end{figure}
+
+Zvtakum uses five custom-0 operations, checked against the opcode inventory
+\cite{riscv-opcodes}: \texttt{vtadd}, \texttt{vtsub},
+\texttt{vtmul}, \texttt{vtdot}, and \texttt{vncvt}. They obey \texttt{vl},
+\texttt{vstart}, mask \texttt{v0}, and RVV tail/mask agnostic policies. SEW is
+8, 16, or 32 for ordinary operations; \texttt{vtdot} accumulates in 2SEW and
+\texttt{vncvt} narrows an aligned EMUL=2 group.
+
+\subsection{Takum encoding and arithmetic}
+The code contains sign $S$, direction $D$, three regime bits $R$, characteristic
+bits $C$, and fraction $F$. For widths below 12, decoding pads the code with
+phantom zero bits. The simulator represents a finite value by a normalized
+integer significand, an exponent, and a sticky bit. Encoding constructs the
+infinite code stream, retains an $n+1$-bit prefix, and uses the extra bit as
+the halfway bit; the sticky bit and the parity of the retained code implement
+code-space RNE. NaR propagates, zero has its specified neutral/absorbing
+behavior, and finite overflow saturates because Takum has no infinity.
+
+\subsection{SpMV and verification}
+The CSR SpMV kernels process rows in VLMAX-sized strips and use indexed vector
+loads. FP32 uses vector multiply and reduction; Takum uses \texttt{vtdot} and
+\texttt{vncvt}. The reference is binary128 arithmetic with separate
+multiply/add rounding. FP8 (E4M3/E5M2) and FP16 are evaluated only by the
+numeric baseline script: they have no simulator instruction count because FP8
+is absent from RVV 1.0 and Zvfh is deliberately not modeled.
+
+\section{Results and Discussion}
+The C++ Takum tests include complete T8 operation tables, sampled T16/T32/T64
+operations, narrowing, dot products, and special values. Standard RVV behavior
+is differentially tested against QEMU when the required tools are available.
+The \NumBitExatas\ SpMV executions are bitwise equal to the Python model.
+
+\input{tabelas-precisao32.tex}
+\input{tabelas-precisao816.tex}
+\input{tabelas-contagens.tex}
+\input{tabela-modelo.tex}
+
+With equal-width accumulators, Takum32 has a median relative error
+\RazaoFormatoAcTrinta\ times lower than FP32 in the tested matrices. The
+instruction model is $N_f=r_fR+c_fS+K$: \texttt{vtdot} replaces a multiply and
+reduction per strip, while \texttt{vncvt} adds one operation per row. Thus the
+Takum32 kernel is never more expensive than FP32 in the tested
+\InsnPares\ matrix--VLEN pairs. These are paired results over eight matrices,
+not a claim about the full SuiteSparse collection.
+
+The numeric baselines show the required limitation clearly. Takum8 and Takum16
+do not overflow in the tested matrices, while E4M3, E5M2, and FP16 can produce
+non-finite rows. Among finite pairs, no low-precision format dominates every
+matrix. These FP8/FP16 observations concern relative error and overflow only;
+they do not include instruction counts or a vector Zvfh execution.
+
+\begin{figure}[t]
+\centering
+\IfFileExists{figures/error-cdf.pdf}{\includegraphics[width=\columnwidth]{figures/error-cdf.pdf}}{%
+\fbox{\parbox{0.9\columnwidth}{The error CDF is generated from per-matrix CSV
+rows by \texttt{make paper-data} when those rows are available.}}}
+\caption{Relative-error CDF against binary128. The versioned generator uses
+only existing result values and does not modify the CSVs.}
+\label{fig:error-cdf}
+\end{figure}
+
+\section{Conclusion}
+Zvtakum demonstrates a verified Takum arithmetic unit and vector instruction
+set for RVV. The integer implementation, simulator, exact model, and SpMV
+measurement perimeter agree bit for bit in the available tests. Takum32
+combines lower error in the paired equal-accumulator comparison with an
+instruction count no greater than FP32 in this experiment. FP8/FP16 remain
+numeric baselines until a future phase models the corresponding hardware
+path. Future work includes Zvfh widening, larger matrix collections, and
+hardware cost evaluation.
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+\end{document}
