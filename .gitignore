@@ -1,0 +1,6 @@
+# Artefatos de compilação
+build/
+
+# Bytecode Python
+__pycache__/
+*.pyc
