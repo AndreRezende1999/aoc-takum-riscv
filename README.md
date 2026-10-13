@@ -13,7 +13,7 @@ T8, T16 e T32.
 | André Luís Alves Rezende | 2018104050 |
 | Gabriel Ramos Fontes | 2022055939 |
 | Isadora Maria Carvalho Lopes | 2022421544 |
-| João Pedro Gonçalves de Noronha Dutra | `<MATRÍCULA>` |
+| João Pedro Santos de Brito | 2023038302 |
 
 ## Como compilar e testar
 
