@@ -302,4 +302,28 @@ uint64_t mul(int n, uint64_t a, uint64_t b) {
     return encode(n, p, st);
 }
 
+uint64_t narrow(int from_n, int to_n, uint64_t a) {
+    // A conversão é uma decodificação exata seguida de uma única codificação
+    // na largura de destino; isso preserva RNE e a saturação do formato.
+    const Exact x = decode(from_n, a);
+    return encode(to_n, x, false);
+}
+
+uint64_t dot_step(int n, uint64_t acc2n, uint64_t a, uint64_t b) {
+    // O acumulador usa o dobro da largura dos operandos, mas o produto é
+    // arredondado nessa largura antes de ser somado ao acumulador.
+    const int w = 2 * n;
+    const Exact x = decode(n, a);
+    const Exact y = decode(n, b);
+    if (x.kind == Exact::Kind::Nar || y.kind == Exact::Kind::Nar) {
+        return nar_code(w);
+    }
+    uint64_t product = 0;
+    if (x.kind != Exact::Kind::Zero && y.kind != Exact::Kind::Zero) {
+        bool st = false;
+        product = encode(w, mul_exact(x, y, st), st);
+    }
+    return add(w, acc2n, product);
+}
+
 }  // namespace zt

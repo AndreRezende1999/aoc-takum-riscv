@@ -64,6 +64,16 @@ uint64_t add(int n, uint64_t a, uint64_t b);
 uint64_t sub(int n, uint64_t a, uint64_t b);
 uint64_t mul(int n, uint64_t a, uint64_t b);
 
+// Converte um código Takum de from_n para to_n bits, arredondando no código
+// de destino.  NaR e zero mantêm sua semântica; a conversão não produz
+// infinito e satura nos extremos representáveis.
+uint64_t narrow(int from_n, int to_n, uint64_t a);
+
+// Executa um passo de produto escalar: decodifica a e b em n bits, calcula o
+// produto e acumula em acc2n de largura 2n.  O produto é arredondado em 2n
+// antes da soma, como exige a instrução vtdot; NaR propaga.
+uint64_t dot_step(int n, uint64_t acc2n, uint64_t a, uint64_t b);
+
 // Campos do código extraídos na decodificação, acessíveis separadamente para
 // inspeção e testes (item 1 do enunciado).  A fração F é exposta em bits crus
 // (frac) e na largura p: F = frac / 2^p.  Para n < 12, a leitura usa a janela
