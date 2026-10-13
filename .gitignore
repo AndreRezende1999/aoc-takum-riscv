@@ -9,6 +9,9 @@ build/
 *.out
 *.bbl
 *.blg
+*.nav
+*.snm
+*.toc
 
 # Bytecode Python
 __pycache__/
