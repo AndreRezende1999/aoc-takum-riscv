@@ -7,17 +7,17 @@
 \usepackage[brazilian]{babel}
 \usepackage{booktabs}
 \usepackage{amsmath}
+\usepackage{graphicx}
 \usepackage{xspace}
 
 % Números gerados por paper/gera_tabelas.py a partir de results/.
 \input{../paper/numeros.tex}
 
-\title[Takum na RVV]{Aritmética Takum na Extensão Vetorial RISC-V}
-\subtitle{Projeto Integrador AOC/UFMG}
-\author{André Luís Alves Rezende \and Gabriel Ramos Fontes \and Isadora Maria Carvalho Lopes
-\and João Pedro Santos de Brito}
-\institute{Departamento de Engenharia Eletrônica -- UFMG}
-\date{2026}
+\title[Takum na RVV (Zvtakum)]{Aritmética Takum na Extensão Vetorial RISC-V (Zvtakum)}
+\subtitle{Projeto Integrador AOC/UFMG --- Entrega Final}
+\author[Rezende, Fontes, Lopes, Brito]{André Luís Alves Rezende \and Gabriel Ramos Fontes \and Isadora Maria Carvalho Lopes \and João Pedro Santos de Brito}
+\institute[DELT/UFMG]{Departamento de Engenharia Eletrônica (DELT) -- UFMG}
+\date[2026]{2026}
 
 \begin{document}
 
@@ -25,228 +25,108 @@
 	\titlepage
 \end{frame}
 
-\begin{frame}{Motivação: proliferação de formatos}
+\begin{frame}{Motivação: proliferação de formatos na RVV}
 	\begin{itemize}
 		\item RVV hoje: FP16 (\texttt{Zvfh}), bfloat16
-		      (\texttt{Zvfbfmin}/\texttt{Zvfbfwma}), FP32/64, cripto.
-		      \textbf{FP8 não existe} na RVV.
-		\item Cada formato novo adiciona conversões cruzadas, cantos de exceção
-		      e área de decodificador.
-		\item A \textbf{aritmética Takum} propõe precisão afunilada com faixa
-		      dinâmica limitada e \textbf{um decodificador comum de 12 bits}
-		      para todas as larguras.
-		\item Replicamos, na RVV, a metodologia do estudo de Hunhold para o
-		      AVX10.2 (MOCAST 2025).
+		      (\texttt{Zvfbfmin}/\texttt{Zvfbfwma}), FP32/64, cripto (\texttt{Zvk*}).
+		      \textbf{FP8 não existe} na RVV~1.0.
+		\item Cada subformato novo adiciona conversões cruzadas ($O(N^2)$), subnormais,
+		      múltiplos NaNs e dependências em \texttt{fcsr} (\texttt{frm}/\texttt{fflags}).
+		\item A \textbf{aritmética Takum} oferece precisão afilada (\emph{tapered precision}),
+		      faixa dinâmica limitada ($\approx 10^{\pm 77}$) e \textbf{um decodificador comum de 12~MSBs}
+		      para qualquer largura.
+		\item Estendemos à RVV~1.0 a metodologia de consolidação de Hunhold para o
+		      Intel AVX10.2 (MOCAST 2025): $92 + 4 = 96 \to 8$ primitivas aritméticas.
 	\end{itemize}
 \end{frame}
 
-\begin{frame}{Takum em 30 segundos}
+\begin{frame}{Codificação Takum Linear (Def. 8) e Precisão Afilada}
 	\begin{itemize}
-		\item Campos $S, D, R, C, F$; a característica cabe em 12 bits.
-		\item T8/T16/T32: códigos curtos usam zeros à direita (janela de 12 bits).
-		\item Negação = complemento de dois; NaR único; saturação; sem infinito.
-		\item \textbf{Arredondamento RNE no código}: piso no prefixo de $n+1$
-		      bits, arredonda pelo bit de meio-ponto e pelo \emph{sticky}.
-		      Pode diferir do vizinho mais próximo em valor.
-		\item Nesta versão: variante \textbf{linear} (Def.~8).
-		      A logarítmica fica para depois ($\Delta\pm$ tem custo próprio).
+		\item Campos $(S, D, R, C, F)$: prefixo $(S,D,R,C)$ cabe sempre nos \textbf{12~MSBs} ($r \le 7$); \texttt{T8} recebe 4 \emph{ghost bits} nulos à direita.
+		\item Complemento de dois monotônico; especiais únicos $0$ e \texttt{NaR}; saturação em $[\mathrm{minpos},\mathrm{maxpos}]$ sem infinito; \textbf{RNE no espaço de códigos}.
 	\end{itemize}
+	\centering
+	\includegraphics[width=0.90\textwidth]{../paper/figures/tapered-precision-pt.pdf}
 \end{frame}
 
-\begin{frame}{Zvtakum: cinco instruções, em custom-0}
+\begin{frame}{Extensão Zvtakum: cinco instruções em \texttt{custom-0}}
 	\begin{table}
 		\centering
-		\small
-		\begin{tabular}{lll}
+		\footnotesize
+		\begin{tabular}{llll}
 			\toprule
-			Mnemônico & Operação & Observação \\
+			Mnemônico & \texttt{funct6} & Operação & Observação \\
 			\midrule
-			\texttt{vtadd.vv} & $vd_i = vs2_i + vs1_i$ & saturante \\
-			\texttt{vtsub.vv} & $vd_i = vs2_i - vs1_i$ & saturante \\
-			\texttt{vtmul.vv} & $vd_i = vs2_i \times vs1_i$ & saturante \\
-			\texttt{vtdot.vv} & $vd_0 \leftarrow vd_0 + \sum_i vs2_i \times vs1_i$
-			                  & acúmulo 2n (T8$\to$T16, \dots) \\
-			\texttt{vncvt.t.t} & $T_{2n} \to T_n$ & estreitamento RNE \\
+			\texttt{vtadd.vv} & \texttt{000000} & $vd_i = vs2_i + vs1_i$ & RNE saturante (\texttt{SEW}) \\
+			\texttt{vtsub.vv} & \texttt{000001} & $vd_i = vs2_i - vs1_i$ & RNE saturante (\texttt{SEW}) \\
+			\texttt{vtmul.vv} & \texttt{000010} & $vd_i = vs2_i \times vs1_i$ & RNE saturante (\texttt{SEW}) \\
+			\texttt{vtdot.vv} & \texttt{000011} & $vd_0 \leftarrow vd_0 + \sum_i vs2_i \cdot vs1_i$
+			                  & acúmulo $2\cdot\mathrm{SEW}$ (\texttt{T16/T32/T64}) \\
+			\texttt{vncvt.t.t} & \texttt{000100} & $T_{2\cdot\mathrm{SEW}} \to T_{\mathrm{SEW}}$ & estreitamento RNE (\texttt{vs1=0}) \\
 			\bottomrule
 		\end{tabular}
 	\end{table}
 	\begin{itemize}
-		\item \texttt{opcode = 0x0B} (custom-0), \texttt{funct3 = 0},
-		      \texttt{funct6} = operação, \texttt{vm} no bit 25.
-		\item Por que não OP-V: o inventário do riscv-opcodes mostra que
-		      \texttt{funct6=0b111001} não é o único livre; custom-0 é o espaço
-		      reservado para extensões não padronizadas.
-		\item SEW seleciona T8/T16/T32; máscara, cauda e \texttt{vl} da RVV;
-		      sem CSRs novos.
+		\item \texttt{opcode = 0x0B} (\texttt{custom-0}), \texttt{funct3 = 000}, \texttt{vm} no bit 25: preserva \texttt{OP-V} intacto.
+		\item \texttt{vtype.vsew} seleciona \texttt{T8/T16/T32}; obedece a \texttt{vl}, \texttt{vstart}, \texttt{v0.t}, \texttt{vta}/\texttt{vma}; \textbf{zero dependência de \texttt{fcsr}}.
 	\end{itemize}
 \end{frame}
 
-\begin{frame}{Arquitetura: núcleo RISC-V modelado}
+\begin{frame}{Caminho de Dados Proposto: RISC-V + Subsistema Zvtakum}
+	\centering
+	\includegraphics[height=0.76\textheight]{../paper/figures/datapath_zvtakum_pt.pdf}
+\end{frame}
+
+\begin{frame}{ULA Takum em Inteiros de 128 Bits e Simulador \texttt{zt-sim}}
 	\begin{itemize}
-		\item \textbf{Escalar:} RV64IM + Zicsr, com \texttt{write} e \texttt{exit}
-		      (ABI Linux), então o kernel roda de verdade no simulador.
-		\item \textbf{Vetorial (subconjunto RVV 1.0):} \texttt{vsetvl*},
-		      \texttt{vle}/\texttt{vse} (8/16/32), \texttt{vluxei32},
-		      \texttt{vmv}, \texttt{vfadd}, \texttt{vfmul},
-		      \texttt{vfredusum}; VLEN configurável; LMUL 1--8.
-		\item \textbf{Zvtakum:} unidade Takum com decodificador de 12 bits,
-		      aritmética exata em 128 bits, acumulador de $2n$ no
-		      \texttt{vtdot} e estreitamento no \texttt{vncvt}.
-		\item \textbf{Contadores:} instruções por classe, escritas de CSR
-		      (inclui \texttt{vl}/\texttt{vtype} do \texttt{vsetvl}),
-		      elementos ativos e bytes.
-		\item Fora do escopo: modo privilegiado, MMU, cache, FP8 e Zvfh.
+		\item \textbf{Sem \texttt{double} do hospedeiro:} \texttt{src/takum.cpp} usa apenas \texttt{uint64\_t} e \texttt{unsigned \_\_int128} para tupla exata $(-1)^{\mathrm{neg}}\cdot\mathrm{sig}\cdot 2^{e-63}$.
+		\item \textbf{Descoberta de duplo arredondamento:} 0 divergências contra \texttt{libtakum} v2.0.0 em 196.608 pares \texttt{T8} e 50.000 \texttt{T16}; em \texttt{T32}, 128/30.000 produtos no limiar de empate diferem por 1~ULP devido ao intermediário \texttt{double} da \texttt{libtakum}.
+		\item \textbf{Oráculo \texttt{binary128}:} validado em 6.017 testes contra \texttt{\_\_float128}/\texttt{libquadmath} (GCC 9.4.0).
+		\item \textbf{Verificação diferencial:} \texttt{zt-sim} coincide byte a byte com \texttt{qemu-riscv64}~10.2.2 em $\mathrm{VLEN}\in\{128,256,512\}$ (9 execuções, 0 divergências) e em todas as \NumExecSpmv\ execuções SpMV.
 	\end{itemize}
 \end{frame}
 
-\begin{frame}{Unidade Takum: aritmética própria, sem \texttt{double}}
+\begin{frame}{Resultado 1: Acurácia SpMV em 32 Bits e Papel do Acumulador}
 	\begin{itemize}
-		\item Decodificação: janela de 12 bits $\to$ valor exato
-		      $(-1)^{S} \cdot \mathrm{sig} \cdot 2^{e-63}$.
-		\item Soma/subtração: alinhamento do menor operando com bit
-		      \emph{sticky}, normalização e codificação.
-		\item Produto: significandos inteiros (até $28\times28$ bits em T32)
-		      e soma de expoentes, com 128 bits no acumulador T64.
-		\item Codificação RNE no código, com saturação em maxpos/minpos.
-		\item \textbf{Sem \texttt{double}} de propósito: as 128 divergências
-		      T32 registradas contra a libtakum vêm de arredondamento duplo no
-		      intermediário \texttt{double}.
+		\item Kernel RVV \texttt{FP32} (ac.\ 32b): mediana \MedFPtrinta; \texttt{Takum32} (\texttt{vtdot} ac.\ 64b): \MedTakumTrinta\ ($\RazaoKernelTrinta\times$ menor erro, vencendo em \ParTrintaFPTakumVence/\ParTrintaFPAmbos\ matrizes; exceção: \texttt{pores\_1}).
+		\item \textbf{Isolando o formato (ac.\ 32 bits em ambos):} \texttt{Takum32 (ac.\ 32b)} obtém \MedTakumTrintaAcTrinta, vencendo o \texttt{FP32} por $\RazaoFormatoAcTrinta\times$ em \ParTrintaAcFPTakumVence/\ParTrintaAcFPAmbos\ matrizes.
+		\item \textbf{Isolando o acumulador de 64 bits:} \texttt{Takum32 (ac.\ 64b)} supera \texttt{FP32 (ac.\ 64b)} (\MedFPtrintaAcSes) por $\RazaoAcAmpliadoTrinta\times$ graças aos 28 bits de significando perto de~1.
+		\item Com pré-escalonamento \texttt{pow2-bound}: \texttt{Takum32} atinge \MedTakumTrintaScaled\ (8/8 vitórias sobre \texttt{FP32}).
 	\end{itemize}
 \end{frame}
 
-\begin{frame}{Simulador e verificação}
+\begin{frame}{Resultado 2: 8 e 16 Bits, Overflows, \texttt{pow2-bound} e 100 SuiteSparse}
+	\small
 	\begin{itemize}
-		\item \texttt{zt-sim} (C++17, três módulos): \texttt{takum.cpp},
-		      \texttt{machine.cpp} e \texttt{main.cpp}. Carrega ELF64 e atende
-		      \texttt{write}/\texttt{exit}.
-		\item \textbf{Núcleo Takum:} 21 verificações contra vetores dourados
-		      gerados pelo modelo Python (T8 completo, narrow T16$\to$T8
-		      completo, amostras de T16/T32/T64).
-		\item \textbf{Diferencial com QEMU 10.2.2:} escalar e RVV padrão,
-		      byte a byte, em VLEN 128/256/512, incluindo máscara com elemento
-		      0 inativo, \texttt{ta}/\texttt{ma}, \texttt{vl=0} e
-		      \texttt{vstart}.
-		\item \textbf{Zvtakum contra o modelo Python:} 1 programa, 3 VLENs,
-		      byte a byte.
-		\item \textbf{Kernels SpMV:} \NumExecSpmv\ execuções (8 matrizes
-		      $\times$ 4 formatos $\times$ 3 VLENs), todas bit a bit iguais ao
-		      modelo.
+		\item \textbf{Sem escala (\texttt{none}):} \texttt{E4M3} estoura em \NFEquatrom/8 matrizes e \texttt{E5M2}/\texttt{FP16} em \NFCincodois/8; \texttt{Takum8}, \texttt{Takum16} e \texttt{bfloat16} são \textbf{100\% finitos} (0/8 falhas).
+		\item \textbf{16 bits:} \texttt{Takum16} (\MedTakumDez) vence \texttt{bfloat16} (\MedBF) por $\RazaoTakumBF\times$ (7/8) sem escala e por $\RazaoTakumBFScaled\times$ (8/8) com \texttt{pow2-bound}.
+		\item \textbf{100 matrizes SuiteSparse:} \texttt{Takum16/32} evita o colapso de cauda do \texttt{Posit} (\texttt{Posit16} máx.\ $99.9\%$ vs.\ $0.85\%$ no \texttt{Takum16}).
 	\end{itemize}
+	\centering
+	\includegraphics[width=0.66\textwidth]{../paper/figures/error-cdf-pt.pdf}
 \end{frame}
 
-\begin{frame}{Metodologia experimental}
+\begin{frame}{Resultado 3: Contagem de Instruções, CSRs e Modelo Analítico}
 	\begin{itemize}
-		\item \textbf{Matrizes:} 8 da coleção Harwell--Boeing, de 30 a
-		      \MaxLinhas\ linhas e até \MaxNnz\ não nulos.
-		\item \textbf{Vetor $x$:} pseudoaleatório (semente 2026), elementos
-		      $k/2^{52}$: força arredondamento em FP32 e takum32.
-		\item \textbf{Kernels:} mesmo laço escalar sobre o CSR; FP32 com
-		      \texttt{vfmul}+\texttt{vfredusum}; Takum com
-		      \texttt{vtdot}+\texttt{vncvt}; gather \texttt{vluxei32} nos dois.
-		\item \textbf{Erro:} relativo L2 contra referência binary128
-		      (113 bits, validada contra \texttt{\_\_float128} do GCC).
-		\item \textbf{Controles:} mesma matriz e mesmo $x$ com acumuladores de
-		      larguras diferentes, para separar formato de acumulação.
-		\item \textbf{Comparações pareadas} por matriz: contamos vitórias,
-		      derrotas e resultados não finitos.
+		\item Modelo exato $N_f = r_f R + c_f S + K$ com \textbf{resíduo máximo \ModResiduoMax} nas \ModExec\ execuções reais e \ModSinteticosOk/\ModSinteticosTotal\ sintéticas ($N_{\text{Takum32}} - N_{\text{FP32}} = R - S \le 0$).
+		\item \texttt{Takum32} executa menos (\InsnMenorTrinta) ou igual (\InsnIgualTrinta) instruções em \InsnPares/\InsnPares\ pares, mesmas escritas CSR e reduz elementos ativos de \ElemNnzFP\ para \ElemNnzTakum/nnz ($-15.6\%$).
 	\end{itemize}
+	\centering
+	\includegraphics[width=0.82\textwidth]{../paper/figures/insn-csr-comparison-pt.pdf}
 \end{frame}
 
-\begin{frame}{Resultado 1: precisão em 32 bits}
+\begin{frame}{Conclusão e Reprodutibilidade (\texttt{scripts/run\_all.py})}
 	\begin{itemize}
-		\item Kernel FP32: erro mediano \MedFPtrinta; Takum32: \MedTakumTrinta.
-		\item Takum32 vence em \ParTrintaFPTakumVence\ de \ParTrintaFPAmbos\
-		      matrizes (exceção: \texttt{pores\_1}).
-		\item \textbf{Decomposição:} o ganho de \RazaoKernelTrinta\ se divide em
-		      \RazaoFormatoAcTrinta\ do \textbf{formato}, com acumulador de 32
-		      bits nos dois, e \RazaoAcumuladorTakum\ do \textbf{acumulador} de
-		      64 bits do \texttt{vtdot}.
-		\item Com o mesmo acumulador de 32 bits, o Takum32 vence em
-		      \ParTrintaAcFPTakumVence\ de \ParTrintaAcFPAmbos\ matrizes.
-		\item Com acumulador de 64 bits nos dois, Takum32 é
-		      \RazaoAcAmpliadoTrinta\ vezes melhor.
-	\end{itemize}
-\end{frame}
-
-\begin{frame}{Resultado 2: 8 e 16 bits}
-	\begin{itemize}
-		\item Takum8 e Takum16 \textbf{não estouram} em nenhuma matriz.
-		      E4M3 estoura em \NFEquatrom, E5M2 em \NFCincodois\ e FP16 em
-		      \NFDez\ das 8.
-		\item Onde nenhum estoura:
-		\begin{itemize}
-			\item Takum16 vence FP16 (acumulador 32 bits) em
-			      \ParDezFPTakumVence\ de \ParDezFPAmbos;
-			\item Takum8 vence E5M2 (acumulador 16 bits) em
-			      \ParOitoCincodoisTakumVence\ de \ParOitoCincodoisAmbos;
-			\item E4M3 vence Takum8 em \ParOitoEquatromOutroVence\ de
-			      \ParOitoEquatromAmbos.
-		\end{itemize}
-		\item Leitura honesta: o Takum troca precisão por ausência de overflow.
-	\end{itemize}
-\end{frame}
-
-\begin{frame}{Resultado 3: custo de instruções}
-	\begin{itemize}
-		\item Modelo analítico: $N = rR + cS + K$ ($R$ = linhas, $S$ = faixas),
-		      com parâmetros medidos e \textbf{resíduo zero} nas \ModExec\
-		      execuções.
-		\item Diferença do Takum32 para o FP32: $N_{\text{Takum32}} -
-		      N_{\text{FP32}} = R - S$. Um \texttt{vncvt} a mais por linha,
-		      um \texttt{vtdot} a menos por faixa.
-		\item O Takum32 nunca executa mais que o FP32:
-		      \InsnMenorTrinta\ pares com menos, \InsnIgualTrinta\ iguais,
-		      \InsnMaiorTrinta\ com mais. Escritas de CSR: idênticas.
-		\item Em VLEN 256: FP32 \InsnNnzFPDuzentos\ instruções por não nulo,
-		      Takum32 \InsnNnzTrintaDuzentos\ ($\RelInsnTrintaDuzentos$).
-		\item O de 8 e 16 bits paga um \texttt{vsetvli} extra por faixa
-		      (índice de 32 bits com LMUL maior): \RelCsrOitoDuzentos\ e
-		      \RelCsrDezDuzentos\ mais escritas de CSR em VLEN 256.
-	\end{itemize}
-\end{frame}
-
-\begin{frame}{Limitações e trabalhos futuros}
-	\begin{itemize}
-		\item 8 matrizes e um único vetor $x$: ordens de grandeza, não
-		      intervalos de confiança.
-		\item Estudo de 1401 matrizes (MuFoLAB) não executado.
-		\item Variante logarítmica não implementada; FP16 vetorial (Zvfh)
-		      apenas reconhecida pelo montador.
-		\item Contadores medem instruções, não ciclos, área ou energia.
-		\item Futuro: 1401 matrizes, Zvfh, $\Delta\pm$, kernel sem a troca de
-		      configuração do índice e comparação com hardware.
-	\end{itemize}
-\end{frame}
-
-\begin{frame}{Conclusão}
-	\begin{itemize}
-		\item Extensão Zvtakum especificada e implementada em custom-0, com
-		      aritmética Takum própria em inteiros.
-		\item Simulador funcional RV64IM+RVV+Zvtakum verificado contra o QEMU
-		      (byte a byte) e contra um modelo de racionais exatos.
-		\item Takum32: erro menor que o FP32 em \ParTrintaAcFPTakumVence\ de
-		      \NumMatrizes\ matrizes com acumulador de mesma largura, e nunca
-		      mais instruções.
-		\item Em 8 e 16 bits o custo depende do VLEN; o Takum não estoura,
-		      mas não é sempre mais preciso.
+		\item \textbf{Zvtakum} une janela de 12~MSBs, ULA inteira de 128 bits com RNE no código e cinco instruções em \texttt{custom-0} sem riscos em \texttt{fcsr}.
+		\item \texttt{Takum32} reduz o erro mediano em $\RazaoKernelTrinta\times$ frente ao \texttt{FP32} sem nunca exceder instruções; \texttt{Takum8/16} eliminam \emph{overflows} e superam \texttt{bfloat16}.
+		\item \textbf{Pipeline único verificável:}
+		      \begin{itemize}
+		          \item \texttt{python3 scripts/run\_all.py} (ou \texttt{make all-pipeline})
+		          \item Executa testes C++/Python, QEMU difftest, 96 kernels SpMV, modelo analítico, baselines numéricos, gráficos e compila \texttt{paper/main.pdf} (EN, 6 pág.), \texttt{paper/main\_pt.pdf} (PT, 6 pág.) e \texttt{slides/slides.pdf}.
+		      \end{itemize}
 	\end{itemize}
 	\vfill
 	\centering \large Obrigado! Perguntas?
-\end{frame}
-
-\begin{frame}{Demo ao vivo}
-	\begin{itemize}
-		\item \texttt{make sim-test} --- núcleo Takum contra vetores dourados.
-		\item \texttt{make sim-check} --- diferencial com QEMU e com o modelo
-		      (9 execuções, byte a byte).
-		\item Execução de um kernel no simulador, com contadores:\\
-		      \texttt{build/zt-sim
-		      build/spmv/bcsstk01.takum32.v256.elf
-		      -{}-vlen 256 -{}-stdout /tmp/y.bin
-		      -{}-counters /tmp/c.json}
-		\item \texttt{make spmv} --- 96 kernels + FP8/FP16 + modelo de
-		      contagem (regenera os CSVs do artigo).
-	\end{itemize}
 \end{frame}
 
 \end{document}

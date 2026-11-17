@@ -1,11 +1,13 @@
-\begin{table*}[t]
-\caption{Instructions, Zvtakum instructions, CSR writes, and active elements per nonzero, summed over the eight matrices. Active elements count each item processed by vector data instructions (load, gather, product, reduction, store).}
+\begin{table}[t]
+\caption{Dynamic instructions, \texttt{Zvtakum} instructions, CSR writes, and active elements per nonzero, aggregated over all eight Harwell--Boeing matrices.}
 \label{tab:contagens}
 \centering
-\footnotesize
+\scriptsize
+\setlength{\tabcolsep}{3.0pt}
+\renewcommand{\arraystretch}{0.95}
 \begin{tabular}{@{}llcccc@{}}
 \toprule
-Format & VLEN & Instr./nnz & Zvtakum/nnz & CSR writes/nnz & Active elem./nnz \\
+Fmt & VLEN & Insn/nnz & Zvt./nnz & CSR/nnz & Elem./nnz \\
 \midrule
 FP32 & 128 & 6.140 & 0.000 & 1.328 & 5.334 \\
 FP32 & 256 & 4.587 & 0.000 & 1.069 & 5.334 \\
@@ -24,4 +26,4 @@ Takum8 & 256 & 4.431 & 0.341 & 1.363 & 4.501 \\
 Takum8 & 512 & 4.392 & 0.337 & 1.350 & 4.501 \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}

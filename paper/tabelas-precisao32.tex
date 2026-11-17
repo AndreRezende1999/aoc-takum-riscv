@@ -1,22 +1,22 @@
 \begin{table*}[t]
-\caption{Relative L2 SpMV error at 32 bits (VLEN = 256), by matrix. FP32 is the vector kernel (32-bit accumulator); controls use the numerical model with the indicated accumulator.}
+\caption{Relative $\ell_2$ SpMV error at 32 bits (VLEN = 256) against Float128, by matrix. FP32 and Takum32 are simulated RISC-V kernels (32-bit and 64-bit accumulators, respectively); controls isolate accumulator width and \texttt{pow2-bound} input scaling.}
 \label{tab:precisao32}
 \centering
 \footnotesize
-\begin{tabular}{@{}lrcccc@{}}
+\begin{tabular}{@{}lrccccc@{}}
 \toprule
-Matrix & nnz & FP32 & Takum32 & FP32 (64-bit acc.) & Takum32 (32-bit acc.) \\
+Matrix & nnz & FP32 (32b acc.) & Takum32 (64b acc.) & FP32 (64b acc.) & Takum32 (32b acc.) & Takum32 (scaled) \\
 \midrule
-bcsstk01 & 400 & $7.20 \times 10^{-8}$ & $5.06 \times 10^{-8}$ & $3.57 \times 10^{-8}$ & $6.22 \times 10^{-8}$ \\
-bcsstk02 & 4356 & $1.81 \times 10^{-7}$ & $1.88 \times 10^{-8}$ & $4.63 \times 10^{-8}$ & $8.32 \times 10^{-8}$ \\
-jpwh\_991 & 6027 & $6.32 \times 10^{-8}$ & $4.19 \times 10^{-9}$ & $3.47 \times 10^{-8}$ & $9.40 \times 10^{-9}$ \\
-pores\_1 & 180 & $3.54 \times 10^{-8}$ & $7.87 \times 10^{-8}$ & $3.26 \times 10^{-8}$ & $5.44 \times 10^{-8}$ \\
-sherman1 & 3750 & $5.82 \times 10^{-8}$ & $4.02 \times 10^{-9}$ & $3.65 \times 10^{-8}$ & $4.93 \times 10^{-9}$ \\
-well1033 & 4732 & $5.99 \times 10^{-8}$ & $4.07 \times 10^{-9}$ & $3.72 \times 10^{-8}$ & $6.45 \times 10^{-9}$ \\
-west0067 & 294 & $4.82 \times 10^{-8}$ & $3.59 \times 10^{-9}$ & $3.27 \times 10^{-8}$ & $4.84 \times 10^{-9}$ \\
-west0132 & 413 & $5.01 \times 10^{-8}$ & $3.21 \times 10^{-8}$ & $4.00 \times 10^{-8}$ & $4.94 \times 10^{-8}$ \\
+bcsstk01 & 400 & $7.20 \times 10^{-8}$ & $5.06 \times 10^{-8}$ & $3.57 \times 10^{-8}$ & $6.22 \times 10^{-8}$ & $3.54 \times 10^{-9}$ \\
+bcsstk02 & 4356 & $1.81 \times 10^{-7}$ & $1.88 \times 10^{-8}$ & $4.63 \times 10^{-8}$ & $8.32 \times 10^{-8}$ & $7.40 \times 10^{-9}$ \\
+jpwh\_991 & 6027 & $6.32 \times 10^{-8}$ & $4.19 \times 10^{-9}$ & $3.47 \times 10^{-8}$ & $9.40 \times 10^{-9}$ & $4.38 \times 10^{-9}$ \\
+pores\_1 & 180 & $3.54 \times 10^{-8}$ & $7.87 \times 10^{-8}$ & $3.26 \times 10^{-8}$ & $5.44 \times 10^{-8}$ & $5.11 \times 10^{-9}$ \\
+sherman1 & 3750 & $5.82 \times 10^{-8}$ & $4.02 \times 10^{-9}$ & $3.65 \times 10^{-8}$ & $4.93 \times 10^{-9}$ & $5.62 \times 10^{-9}$ \\
+well1033 & 4732 & $5.99 \times 10^{-8}$ & $4.07 \times 10^{-9}$ & $3.72 \times 10^{-8}$ & $6.45 \times 10^{-9}$ & $6.94 \times 10^{-9}$ \\
+west0067 & 294 & $4.82 \times 10^{-8}$ & $3.59 \times 10^{-9}$ & $3.27 \times 10^{-8}$ & $4.84 \times 10^{-9}$ & $6.18 \times 10^{-9}$ \\
+west0132 & 413 & $5.01 \times 10^{-8}$ & $3.21 \times 10^{-8}$ & $4.00 \times 10^{-8}$ & $4.94 \times 10^{-8}$ & $2.72 \times 10^{-9}$ \\
 \midrule
-Mediana & & $5.91 \times 10^{-8}$ & $1.15 \times 10^{-8}$ & $3.61 \times 10^{-8}$ & $2.94 \times 10^{-8}$ \\
+Median & & $5.91 \times 10^{-8}$ & $1.15 \times 10^{-8}$ & $3.61 \times 10^{-8}$ & $2.94 \times 10^{-8}$ & $5.37 \times 10^{-9}$ \\
 \bottomrule
 \end{tabular}
 \end{table*}

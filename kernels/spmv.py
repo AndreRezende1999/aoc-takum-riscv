@@ -20,6 +20,7 @@ import csv
 import json
 import pathlib
 import random
+import shutil
 import subprocess
 import sys
 from fractions import Fraction
@@ -222,14 +223,20 @@ def simulate(name: str, fmt: Format, vlen: int, source: str) -> tuple[bytes, dic
     elf = BUILD / f"{stem}.elf"
     out = BUILD / f"{stem}.out"
     cnt = BUILD / f"{stem}.json"
-    asm.write_text(source)
-    proc = run(["llvm-mc", "-triple=riscv64", "-mattr=+m,+zicsr,+v,+zvfh",
-                "-filetype=obj", "-o", str(obj), str(asm)])
-    if proc.returncode != 0:
-        raise SystemExit(f"llvm-mc falhou em {stem}:\n{proc.stderr.decode()}")
-    proc = run(["ld", "-m", "elf64lriscv", "--no-relax", "-Ttext=0x10000", "-o", str(elf), str(obj)])
-    if proc.returncode != 0:
-        raise SystemExit(f"ld falhou em {stem}:\n{proc.stderr.decode()}")
+    if shutil.which("llvm-mc"):
+        asm.write_text(source)
+        proc = run(["llvm-mc", "-triple=riscv64", "-mattr=+m,+zicsr,+v,+zvfh",
+                    "-filetype=obj", "-o", str(obj), str(asm)])
+        if proc.returncode != 0:
+            raise SystemExit(f"llvm-mc falhou em {stem}:\n{proc.stderr.decode()}")
+        proc = run(["ld", "-m", "elf64lriscv", "--no-relax", "-Ttext=0x10000", "-o", str(elf), str(obj)])
+        if proc.returncode != 0:
+            raise SystemExit(f"ld falhou em {stem}:\n{proc.stderr.decode()}")
+    elif elf.exists():
+        if not asm.exists():
+            asm.write_text(source)
+    else:
+        raise SystemExit(f"llvm-mc ausente no PATH e ELF pré-compilado {elf} não existe")
     proc = run([str(SIM), str(elf), "--vlen", str(vlen), "--stdout", str(out),
                 "--counters", str(cnt), "--mem", "64", "--max-insns", str(10**9)])
     if proc.returncode not in (0, 1):

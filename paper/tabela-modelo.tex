@@ -1,8 +1,10 @@
 \begin{table}[t]
-\caption{Parâmetros do modelo de contagem $N = rR + cS + K$, em que $R$ é o número de linhas e $S$ o número de faixas das linhas não vazias. A última coluna compara o modelo com as execuções reais.}
+\caption{Parameters of the analytic instruction-count model $N_f = r_f R + c_f S + K$, where $R$ is row count and $S$ is total nonempty-row strip count across all 96 simulator runs.}
 \label{tab:modelo}
 \centering
-\footnotesize
+\scriptsize
+\setlength{\tabcolsep}{3.0pt}
+\renewcommand{\arraystretch}{0.95}
 \begin{tabular}{@{}lcccrr@{}}
 \toprule
 Format & $r$ & $c$ & $K$ & Synthetic & Exact runs \\

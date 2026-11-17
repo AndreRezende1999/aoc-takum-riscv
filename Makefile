@@ -64,12 +64,17 @@ paper-data:
 	$(PYTHON) paper/gera_figuras.py
 
 paper:
-	cd paper && latexmk -pdf -interaction=nonstopmode main.tex
+	cd paper/figures && pdflatex -interaction=nonstopmode datapath_zvtakum.tex && pdflatex -interaction=nonstopmode datapath_zvtakum_pt.tex
+	cd paper && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+	cd paper && pdflatex -interaction=nonstopmode main_pt.tex && bibtex main_pt && pdflatex -interaction=nonstopmode main_pt.tex && pdflatex -interaction=nonstopmode main_pt.tex
 
 slides:
-	cd slides && latexmk -pdf -interaction=nonstopmode slides.tex
+	cd slides && pdflatex -interaction=nonstopmode slides.tex && pdflatex -interaction=nonstopmode slides.tex
+
+all-pipeline:
+	$(PYTHON) scripts/run_all.py
 
 clean:
-	rm -rf $(BUILD)
+	rm -f $(BUILD)/takum.o $(BUILD)/machine.o $(BUILD)/takum-test $(BUILD)/zt-test $(BUILD)/zt-sim
 
-.PHONY: all build test golden sim sim-test sim-check spmv paper-data paper slides clean
+.PHONY: all build test golden sim sim-test sim-check spmv paper-data paper slides all-pipeline clean

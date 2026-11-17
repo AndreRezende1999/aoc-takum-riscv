@@ -19,6 +19,7 @@ from __future__ import annotations
 import csv
 import math
 import pathlib
+import shutil
 import sys
 from fractions import Fraction
 
@@ -33,14 +34,14 @@ RESULTS = ROOT / "results" / "spmv_hb.csv"
 OUT = ROOT / "results" / "modelo_contagem.csv"
 
 
-def count(fmt, row_lengths: list[int]) -> int:
+def count(fmt, row_lengths: list[int], vlen: int = FIT_VLEN) -> int:
     rowptr = [0]
     for n in row_lengths:
         rowptr.append(rowptr[-1] + n)
     nnz = rowptr[-1]
     one = fmt.encode(Fraction(1))
     source = spmv.program(fmt, rowptr, [0] * nnz, [one] * nnz, [one], len(row_lengths), nnz)
-    _, counters = spmv.simulate("modelo", fmt, FIT_VLEN, source)
+    _, counters = spmv.simulate("modelo", fmt, vlen, source)
     return counters["insn_total"]
 
 
@@ -90,21 +91,60 @@ def check_real(params: dict) -> dict:
 def main() -> None:
     formats = {fmt.name: fmt for fmt in spmv.formats()}
     params, synthetic = {}, {}
-    for name, fmt in formats.items():
-        r, c, k, checks = fit(fmt)
-        params[name] = (r, c, k)
-        synthetic[name] = (sum(checks), len(checks))
-    real = check_real(params)
+    has_mc = bool(shutil.which("llvm-mc"))
+    existing = {}
+    if not has_mc and OUT.exists():
+        for row in csv.DictReader(OUT.open()):
+            existing[row["formato"]] = (int(row["r"]), int(row["c"]), int(row["k"]))
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    with OUT.open("w", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(["formato", "r", "c", "k", "sinteticos_ok", "sinteticos_total",
-                         "execucoes", "exatas", "residuo_max"])
-        for name, (r, c, k) in params.items():
-            ok, total = synthetic[name]
-            s = real[name]
-            writer.writerow([name, r, c, k, ok, total, s["total"], s["exatas"], s["residuo_max"]])
+    for name, fmt in formats.items():
+        if has_mc:
+            r, c, k, checks = fit(fmt)
+            params[name] = (r, c, k)
+            synthetic[name] = (sum(checks), len(checks))
+        elif name in existing:
+            r, c, k = existing[name]
+            vlmax_256 = FIT_VLEN // fmt.bits
+            row_lengths = [3, 0, vlmax_256 + 2, 1]
+            # O binário RVV 1.0 preservado (build/spmv/modelo.<fmt>.v256.elf) é agnóstico
+            # a VLEN; verificamos sua execução no zt-sim nos 3 VLENs (128, 256, 512).
+            elf_256 = spmv.BUILD / f"modelo.{fmt.name}.v256.elf"
+            checks = []
+            for vlen in (128, 256, 512):
+                vlmax = vlen // fmt.bits
+                strips = sum(math.ceil(n / vlmax) for n in row_lengths if n > 0)
+                target_elf = spmv.BUILD / f"modelo.{fmt.name}.v{vlen}.elf"
+                created_link = False
+                if not target_elf.exists() and elf_256.exists():
+                    shutil.copy2(elf_256, target_elf)
+                    created_link = True
+                try:
+                    actual = count(fmt, row_lengths, vlen=vlen)
+                finally:
+                    if created_link and target_elf.exists():
+                        target_elf.unlink()
+                checks.append(actual == len(row_lengths) * r + strips * c + k)
+            if not all(checks):
+                raise SystemExit(f"modelo_contagem: divergência no ELF sintético preservado para {name}")
+            params[name] = (r, c, k)
+            synthetic[name] = (sum(checks), len(checks))
+        else:
+            raise SystemExit(f"llvm-mc ausente e {OUT} não contém parâmetros para {name}")
+    real = check_real(params)
+    for name, s in real.items():
+        if s["residuo_max"] != 0 or s["exatas"] != s["total"]:
+            raise SystemExit(f"modelo_contagem: resíduo não nulo para {name}: {s}")
+
+    if has_mc:
+        OUT.parent.mkdir(parents=True, exist_ok=True)
+        with OUT.open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["formato", "r", "c", "k", "sinteticos_ok", "sinteticos_total",
+                             "execucoes", "exatas", "residuo_max"])
+            for name, (r, c, k) in params.items():
+                ok, total = synthetic[name]
+                s = real[name]
+                writer.writerow([name, r, c, k, ok, total, s["total"], s["exatas"], s["residuo_max"]])
 
     print(f"{'formato':<9} {'r':>3} {'c':>3} {'K':>3}  sintéticos  execuções exatas  resíduo máx.")
     for name, (r, c, k) in params.items():

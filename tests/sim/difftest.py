@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -33,6 +34,11 @@ def assemble(src: pathlib.Path) -> pathlib.Path:
     BUILD.mkdir(parents=True, exist_ok=True)
     obj = BUILD / f"{src.stem}.o"
     elf = BUILD / f"{src.stem}.elf"
+    if not shutil.which("llvm-mc"):
+        if elf.exists():
+            print(f"[aviso] llvm-mc ausente no PATH; reutilizando {elf.relative_to(ROOT)}")
+            return elf
+        raise SystemExit(f"llvm-mc ausente e {elf} não existe para reutilização")
     proc = run(["llvm-mc", "-triple=riscv64", "-mattr=+m,+zicsr,+v,+zvfh",
                 "-filetype=obj", "-o", str(obj), str(src)])
     if proc.returncode != 0:

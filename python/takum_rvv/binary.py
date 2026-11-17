@@ -170,8 +170,11 @@ class BinaryFormat:
 
 
 E4M3 = BinaryFormat(8, 4, 3, "E4M3", finite_only=True)
+E4M3_SAT = BinaryFormat(8, 4, 3, "E4M3_sat", finite_only=True, saturate=True)
 E5M2 = BinaryFormat(8, 5, 2, "E5M2")
+E5M2_SAT = BinaryFormat(8, 5, 2, "E5M2_sat", saturate=True)
 BINARY16 = BinaryFormat(16, 5, 10, "binary16")
+BFLOAT16 = BinaryFormat(16, 8, 7, "bfloat16")
 BINARY32 = BinaryFormat(32, 8, 23, "binary32")
 BINARY64 = BinaryFormat(64, 11, 52, "binary64")
 BINARY128 = BinaryFormat(128, 15, 112, "binary128")
