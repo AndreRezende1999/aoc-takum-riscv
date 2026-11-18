@@ -61,17 +61,9 @@ spmv: sim
 	$(PYTHON) kernels/numeric_baselines.py
 	$(PYTHON) kernels/modelo_contagem.py
 
-paper-data:
-	$(PYTHON) paper/gera_tabelas.py
+figures:
 	$(PYTHON) paper/gera_figuras.py
-
-paper:
 	cd paper/figures && pdflatex -interaction=nonstopmode datapath_zvtakum.tex && pdflatex -interaction=nonstopmode datapath_zvtakum_pt.tex
-	cd paper && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
-	cd paper && pdflatex -interaction=nonstopmode main_pt.tex && bibtex main_pt && pdflatex -interaction=nonstopmode main_pt.tex && pdflatex -interaction=nonstopmode main_pt.tex
-
-slides:
-	cd slides && pdflatex -interaction=nonstopmode slides.tex && pdflatex -interaction=nonstopmode slides.tex
 
 all-pipeline:
 	$(PYTHON) scripts/run_all.py
@@ -79,4 +71,4 @@ all-pipeline:
 clean:
 	rm -f $(BUILD)/takum.o $(BUILD)/machine.o $(BUILD)/takum-test $(BUILD)/zt-test $(BUILD)/zt-sim
 
-.PHONY: all build test golden sim sim-test sim-check spmv paper-data paper slides all-pipeline clean
+.PHONY: all build test golden sim sim-test sim-check spmv figures all-pipeline clean

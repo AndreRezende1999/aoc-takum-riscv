@@ -24,7 +24,9 @@ KEY = re.compile(r"@\w+\s*\{\s*([^,\s]+)\s*,")
 
 
 def bib_keys() -> list[str]:
-    return KEY.findall(BIB.read_text(encoding="utf-8"))
+    if BIB.is_file():
+        return KEY.findall(BIB.read_text(encoding="utf-8"))
+    return list(audit_rows().keys())
 
 
 def audit_rows() -> dict[str, dict[str, str]]:

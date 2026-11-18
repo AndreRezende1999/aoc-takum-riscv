@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # Single entry point for the AOC Takum/RISC-V project.
 #
-#   ./run_all.sh              # test + bench + paper + check
+#   ./run_all.sh              # test + bench + check (código, testes e figuras)
 #   ./run_all.sh test         # C++/Python/ISA tests + offline reference check
 #   ./run_all.sh demo         # quick functional presentation demo
-#   ./run_all.sh bench        # numeric baselines + tables + figures
-#   ./run_all.sh paper        # TikZ diagrams, EN/PT IEEE papers, and slides
-#   ./run_all.sh check        # page limits (<= 6p), citations, manifest
+#   ./run_all.sh bench        # numeric baselines + figures (PDF/SVG + TikZ)
+#   ./run_all.sh check        # citations + reproducibility manifest
 #   ./run_all.sh --strict ... # fail if optional QEMU/LLVM/network tools are missing
 #   ./run_all.sh bench --full # regenerate SpMV CSVs and full closure benchmark
 set -euo pipefail
@@ -23,7 +22,7 @@ for arg in "$@"; do
     case "$arg" in
         --strict) STRICT=1 ;;
         --full) FULL=1 ;;
-        test|demo|bench|paper|check|all) COMMAND="$arg" ;;
+        test|demo|bench|check|all) COMMAND="$arg" ;;
         *) echo "argumento desconhecido: $arg" >&2; exit 2 ;;
     esac
 done
@@ -107,67 +106,19 @@ run_bench() {
         log "cache matrices/suitesparse100 vazio; mantendo suitesparse100_conversion.csv versionado e self-check HB em binary128"
     fi
 
-    log "tabelas e figuras"
-    python3 "$ROOT/paper/gera_tabelas.py" 2>&1 | tee "$LOGS/tables.log"
+    log "figuras e diagramas"
     python3 "$ROOT/paper/gera_figuras.py" 2>&1 | tee "$LOGS/figures.log"
-}
-
-compile_ieee_tex() {
-    local dir="$1" stem="$2" logfile="$3"
-    (
-        cd "$ROOT/$dir"
-        pdflatex -interaction=nonstopmode "${stem}.tex"
-        if have bibtex && [[ -f "refs.bib" ]]; then
-            bibtex "$stem" || true
-        fi
-        pdflatex -interaction=nonstopmode "${stem}.tex"
-        pdflatex -interaction=nonstopmode "${stem}.tex"
-    ) 2>&1 | tee "$LOGS/$logfile"
-}
-
-run_paper() {
-    have pdflatex || { skip "pdflatex ausente; compilação LaTeX ignorada"; return; }
-    log "diagramas TikZ"
-    for tex in datapath_zvtakum.tex datapath_zvtakum_pt.tex zvtakum-datapath.tex zvtakum-datapath-pt.tex; do
-        if [[ -f "$ROOT/paper/figures/$tex" ]]; then
-            (cd "$ROOT/paper/figures" && pdflatex -interaction=nonstopmode "$tex") \
-                2>&1 | tee "$LOGS/diagram-${tex%.tex}.log"
-        fi
-    done
-    log "artigo IEEE (EN)"
-    compile_ieee_tex paper main article.log
-    if [[ -f "$ROOT/paper/main_pt.tex" ]]; then
-        log "artigo IEEE (PT)"
-        compile_ieee_tex paper main_pt article-pt.log
-    fi
-    if [[ -f "$ROOT/slides/slides.tex" ]]; then
-        log "slides Beamer"
-        (
-            cd "$ROOT/slides"
-            pdflatex -interaction=nonstopmode slides.tex
-            pdflatex -interaction=nonstopmode slides.tex
-        ) 2>&1 | tee "$LOGS/slides.log"
-    fi
-}
-
-check_page_limit() {
-    local pdf="$1" limit="$2"
-    [[ -f "$pdf" ]] || { skip "$pdf ausente"; return; }
-    have pdfinfo || { skip "pdfinfo ausente; não foi possível verificar o limite de páginas"; return; }
-    local pages
-    pages="$(pdfinfo "$pdf" | awk '/^Pages:/ {print $2}')"
-    printf '[check] %s: %s páginas (limite %s)\n' "$pdf" "$pages" "$limit"
-    if (( pages > limit )); then
-        echo "[check] FALHA: $pdf excede $limit páginas" >&2
-        return 1
+    if have pdflatex; then
+        for tex in datapath_zvtakum.tex datapath_zvtakum_pt.tex zvtakum-datapath.tex zvtakum-datapath-pt.tex; do
+            if [[ -f "$ROOT/paper/figures/$tex" ]]; then
+                (cd "$ROOT/paper/figures" && pdflatex -interaction=nonstopmode "$tex") \
+                    2>&1 | tee "$LOGS/diagram-${tex%.tex}.log"
+            fi
+        done
     fi
 }
 
 run_check() {
-    log "limite de páginas dos artigos (<= 6 páginas)"
-    check_page_limit "$ROOT/paper/main.pdf" 6
-    check_page_limit "$ROOT/paper/main_pt.pdf" 6
-
     log "referências (offline)"
     python3 "$ROOT/tools/check_references.py" --json "$ROOT/references/audit.json" \
         2>&1 | tee "$LOGS/references-offline.log"
@@ -187,15 +138,13 @@ case "$COMMAND" in
     test) run_test ;;
     demo) run_demo ;;
     bench) run_bench ;;
-    paper) run_paper ;;
     check) run_check ;;
     all)
         run_test
         run_bench
-        run_paper
         run_check
         ;;
-    *) echo "uso: $0 [test|demo|bench|paper|check|all] [--strict] [--full]" >&2; exit 2 ;;
+    *) echo "uso: $0 [test|demo|bench|check|all] [--strict] [--full]" >&2; exit 2 ;;
 esac
 
 log "concluído: $COMMAND"

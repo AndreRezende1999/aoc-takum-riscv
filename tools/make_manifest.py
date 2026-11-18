@@ -98,12 +98,14 @@ def main() -> int:
         "artifacts_sha256": {
             str(path.relative_to(ROOT)): sha256(path)
             for path in (
-                ROOT / "paper" / "main.pdf",
-                ROOT / "paper" / "main_pt.pdf",
-                ROOT / "paper" / "main.tex",
-                ROOT / "paper" / "main_pt.tex",
-                ROOT / "paper" / "refs.bib",
-                ROOT / "slides" / "slides.pdf",
+                ROOT / "paper" / "figures" / "tapered-precision.pdf",
+                ROOT / "paper" / "figures" / "tapered-precision-pt.pdf",
+                ROOT / "paper" / "figures" / "error-cdf.pdf",
+                ROOT / "paper" / "figures" / "error-cdf-pt.pdf",
+                ROOT / "paper" / "figures" / "insn-csr-comparison.pdf",
+                ROOT / "paper" / "figures" / "insn-csr-comparison-pt.pdf",
+                ROOT / "paper" / "figures" / "datapath_zvtakum.pdf",
+                ROOT / "paper" / "figures" / "datapath_zvtakum_pt.pdf",
                 ROOT / "results" / "spmv_hb.csv",
                 ROOT / "results" / "spmv_numerico_hb.csv",
                 ROOT / "results" / "spmv_numerico_scaled_hb.csv",

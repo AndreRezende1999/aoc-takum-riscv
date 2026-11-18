@@ -88,47 +88,19 @@ def main() -> int:
     run_step("5b. Verificação do manifesto SuiteSparse-100 e conversão binary128 local",
              [sys.executable, "scripts/bench_suitesparse100.py"])
 
-    # 6. Geração de tabelas LaTeX e gráficos vetoriais matplotlib
-    run_step("6a. Geração das tabelas e macros LaTeX (EN/PT)",
-             [sys.executable, "paper/gera_tabelas.py"])
-    run_step("6b. Geração dos gráficos vetoriais (tapered-precision, error-cdf, insn-csr)",
+    # 6. Geração de gráficos vetoriais matplotlib e diagramas TikZ
+    run_step("6a. Geração dos gráficos vetoriais (tapered-precision, error-cdf, insn-csr)",
              [sys.executable, "paper/gera_figuras.py"])
 
-    # 7. Compilação LaTeX (TikZ standalone + Artigos EN/PT + Slides)
     if shutil.which("pdflatex"):
         for tex in ("datapath_zvtakum.tex", "datapath_zvtakum_pt.tex", "zvtakum-datapath.tex", "zvtakum-datapath-pt.tex"):
             if (ROOT / "paper" / "figures" / tex).exists():
-                run_step(f"7a. Compilação TikZ ({tex})",
+                run_step(f"6b. Compilação TikZ ({tex})",
                          ["pdflatex", "-interaction=nonstopmode", tex],
                          cwd=ROOT / "paper" / "figures")
 
-        def compile_ieee_doc(step_label: str, stem: str, cwd: pathlib.Path) -> None:
-            run_step(f"{step_label} (pass 1)",
-                     ["pdflatex", "-interaction=nonstopmode", f"{stem}.tex"], cwd=cwd)
-            if shutil.which("bibtex"):
-                run_step(f"{step_label} (bibtex)", ["bibtex", stem], cwd=cwd)
-            run_step(f"{step_label} (pass 2)",
-                     ["pdflatex", "-interaction=nonstopmode", f"{stem}.tex"], cwd=cwd)
-            run_step(f"{step_label} (pass 3)",
-                     ["pdflatex", "-interaction=nonstopmode", f"{stem}.tex"], cwd=cwd)
-
-        compile_ieee_doc("7b. Compilação do Artigo IEEE em Inglês (paper/main.pdf)",
-                         "main", ROOT / "paper")
-        check_pdf_pages(ROOT / "paper" / "main.pdf", 6)
-        if (ROOT / "paper" / "main_pt.tex").exists():
-            compile_ieee_doc("7c. Compilação do Artigo IEEE em Português (paper/main_pt.pdf)",
-                             "main_pt", ROOT / "paper")
-            check_pdf_pages(ROOT / "paper" / "main_pt.pdf", 6)
-        if (ROOT / "slides" / "slides.tex").exists():
-            run_step("7d. Compilação dos slides Beamer (pass 1)",
-                     ["pdflatex", "-interaction=nonstopmode", "slides.tex"],
-                     cwd=ROOT / "slides")
-            run_step("7e. Compilação dos slides Beamer (pass 2)",
-                     ["pdflatex", "-interaction=nonstopmode", "slides.tex"],
-                     cwd=ROOT / "slides")
-
-    # 8. Manifesto de reprodutibilidade
-    run_step("8. Manifesto de reprodutibilidade",
+    # 7. Manifesto de reprodutibilidade
+    run_step("7. Manifesto de reprodutibilidade",
              [sys.executable, "tools/make_manifest.py"])
 
     total = time.monotonic() - t_start
