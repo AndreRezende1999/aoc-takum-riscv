@@ -57,7 +57,7 @@ run_test() {
         python3 "$ROOT/tests/sim/gen_zvt.py"
         python3 "$ROOT/tests/sim/difftest.py" 2>&1 | tee "$LOGS/difftest.log"
     elif have qemu-riscv64 && [[ -f "$ROOT/build/asm/scalar_ops.elf" ]]; then
-        skip "llvm-mc ausente no PATH; executando difftest com ELFs pré-compilados em build/asm/"
+        log "llvm-mc ausente no PATH; executando difftest com ELFs pré-compilados em build/asm/"
         make -C "$ROOT" sim >/dev/null
         python3 "$ROOT/tests/sim/difftest.py" 2>&1 | tee "$LOGS/difftest.log"
     else
@@ -101,8 +101,10 @@ run_bench() {
 
     log "manifesto e checagem de conversão SuiteSparse-100 / HB"
     python3 "$ROOT/scripts/bench_suitesparse100.py" 2>&1 | tee "$LOGS/suitesparse.log"
-    if [[ ! -d "$ROOT/matrices/suitesparse100" ]] || [[ -z "$(ls -A "$ROOT/matrices/suitesparse100" 2>/dev/null || true)" ]]; then
-        skip "cache matrices/suitesparse100 vazio; usando suitesparse100_conversion.csv versionado e self-check HB em binary128"
+    if [[ ! -f "$ROOT/results/suitesparse100_conversion.csv" ]]; then
+        skip "results/suitesparse100_conversion.csv ausente"
+    elif [[ ! -d "$ROOT/matrices/suitesparse100" ]] || [[ -z "$(ls -A "$ROOT/matrices/suitesparse100" 2>/dev/null || true)" ]]; then
+        log "cache matrices/suitesparse100 vazio; mantendo suitesparse100_conversion.csv versionado e self-check HB em binary128"
     fi
 
     log "tabelas e figuras"
