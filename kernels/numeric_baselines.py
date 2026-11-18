@@ -34,6 +34,14 @@ from takum_rvv.binary import (  # noqa: E402
     E5M2_SAT,
 )
 from takum_rvv.codec import Takum  # noqa: E402
+from takum_rvv.posit import (  # noqa: E402
+    POSIT8,
+    POSIT8_2,
+    POSIT16,
+    POSIT16_2,
+    POSIT32,
+    POSIT64,
+)
 from takum_rvv.scaling import prepare_scaled_inputs, rescale_values  # noqa: E402
 from takum_rvv.sparse import (  # noqa: E402
     error_metrics,
@@ -47,7 +55,7 @@ OUT_SCALED = ROOT / "results" / "spmv_numerico_scaled_hb.csv"
 OUT_ROWS = ROOT / "results" / "spmv_row_errors_hb.csv"
 
 FORMATS = [
-    # Política padrão (acumulador 2n para Takum e largura estendida padrão para FP/BF16).
+    # Política padrão (acumulador 2n para Takum/Posit e largura estendida padrão para FP/BF16).
     ("e4m3", E4M3, BINARY16),
     ("e4m3_sat", E4M3_SAT, BINARY16),
     ("e5m2", E5M2, BINARY16),
@@ -58,13 +66,25 @@ FORMATS = [
     ("takum8", Takum(8), Takum(16)),
     ("takum16", Takum(16), Takum(32)),
     ("takum32", Takum(32), Takum(64)),
+    ("posit8_0", POSIT8, POSIT16),
+    ("posit8_2", POSIT8_2, POSIT16_2),
+    ("posit16", POSIT16_2, POSIT32),
+    ("posit16_1", POSIT16, POSIT32),
+    ("posit32", POSIT32, POSIT64),
     # Controles de acumulação (mesma largura 1x e acumulador FP64).
+    ("e4m3_acc8", E4M3, E4M3),
+    ("e5m2_acc8", E5M2, E5M2),
     ("binary16_acc16", BINARY16, BINARY16),
     ("bfloat16_acc16", BFLOAT16, BFLOAT16),
     ("binary32_acc64", BINARY32, BINARY64),
     ("takum8_acc8", Takum(8), Takum(8)),
     ("takum16_acc16", Takum(16), Takum(16)),
     ("takum32_acc32", Takum(32), Takum(32)),
+    ("posit8_0_acc8", POSIT8, POSIT8),
+    ("posit8_2_acc8", POSIT8_2, POSIT8_2),
+    ("posit16_acc16", POSIT16_2, POSIT16_2),
+    ("posit16_1_acc16", POSIT16, POSIT16),
+    ("posit32_acc32", POSIT32, POSIT32),
 ]
 
 CDF_FORMATS = {
@@ -79,6 +99,9 @@ CDF_FORMATS = {
     "takum16",
     "takum32",
     "takum32_acc32",
+    "posit8_2",
+    "posit16",
+    "posit32",
 }
 
 

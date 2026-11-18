@@ -170,14 +170,17 @@ def generate_error_cdf(lang: str = "en") -> None:
         raw_rows = read_rows(row_file)
         series_defs = [
             ("Takum32", "none", "takum32", dict(color="#006d77", lw=1.7, ls="-")),
+            ("Posit32", "none", "posit32", dict(color="#047857", lw=1.3, ls=":")),
             ("FP32", "none", "binary32", dict(color="#111827", lw=1.4, ls="--")),
             ("Takum16", "none", "takum16", dict(color="#0ea5e9", lw=1.6, ls="-")),
+            ("Posit16,2", "none", "posit16", dict(color="#0284c7", lw=1.3, ls=":")),
             ("bfloat16", "none", "bfloat16", dict(color="#8b5cf6", lw=1.4, ls="-.")),
             (f"FP16 ({none_lbl})", "none", "binary16", dict(color="#2563eb", lw=1.3, ls=":")),
             (f"FP16 ({scaled_lbl})", "pow2-bound", "binary16", dict(color="#2563eb", lw=1.3, ls="--")),
             ("Takum8", "none", "takum8", dict(color="#d97706", lw=1.6, ls="-")),
+            ("Posit8,2", "none", "posit8_2", dict(color="#b45309", lw=1.3, ls=":")),
             (f"E4M3 ({none_lbl})", "none", "e4m3", dict(color="#dc2626", lw=1.3, ls="-.")),
-            (f"E5M2 ({none_lbl})", "none", "e5m2", dict(color="#991b1b", lw=1.3, ls=":")),
+            (f"E5M2 ({none_lbl})", "none", "e5m2", dict(color="#991b1b", lw=1.3, ls="--")),
         ]
         vals_map = {}
         styles = {}
@@ -198,8 +201,8 @@ def generate_error_cdf(lang: str = "en") -> None:
             ax1.set_title(r"(a) Erro por Linha na SpMV vs. Float128 (8 Matrizes HB)", pad=38)
             ax1.set_xlabel(r"Erro relativo por componente $\varepsilon_{\mathrm{rel}, i}$ (log)")
             ax1.set_ylabel("Fração acumulada de linhas")
-        ax1.legend(loc="lower center", bbox_to_anchor=(0.5, 1.01), ncol=3,
-                   fontsize=6.1, frameon=True, columnspacing=0.8, handlelength=1.6)
+        ax1.legend(loc="lower center", bbox_to_anchor=(0.5, 1.01), ncol=4,
+                   fontsize=5.9, frameon=True, columnspacing=0.7, handlelength=1.4)
 
     # Panel (b): SuiteSparse 100 conversion benchmark (15 formats including Posit & Takum Log)
     ss_file = RESULTS / "suitesparse100_conversion.csv"
@@ -255,7 +258,7 @@ def generate_error_cdf(lang: str = "en") -> None:
             writer = csv.writer(handle)
             writer.writerow(["source", "format", "finite_count", "total_count"])
             if row_file.exists():
-                for fmt in ("takum32", "binary32", "takum16", "bfloat16", "binary16", "takum8", "e4m3", "e5m2"):
+                for fmt in ("takum32", "posit32", "binary32", "takum16", "posit16", "bfloat16", "binary16", "takum8", "posit8_2", "e4m3", "e5m2"):
                     sub = [r["relative_error"] for r in raw_rows if r["scaling"] == "none" and r["format"] == fmt]
                     writer.writerow(["spmv_hb_none", fmt, sum(v != "NF" for v in sub), len(sub)])
             if ss_file.exists():

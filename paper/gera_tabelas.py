@@ -77,10 +77,18 @@ def cell(row: dict) -> str:
     return sci(value)
 
 
-def table_block(caption: str, label: str, columns: str, header: list[str], body: list[str],
-                footer: list[str], star: bool = True) -> str:
+def table_block(
+    caption: str,
+    label: str,
+    columns: str,
+    header: list[str],
+    body: list[str],
+    footer: list[str],
+    star: bool = True,
+    wide_cols: bool = False,
+) -> str:
     env = "table*" if star else "table"
-    size_cmd = "\\footnotesize" if star else "\\scriptsize"
+    size_cmd = "\\scriptsize" if (not star or wide_cols) else "\\footnotesize"
     lines = [
         f"\\begin{{{env}}}[t]",
         f"\\caption{{{caption}}}",
@@ -92,6 +100,11 @@ def table_block(caption: str, label: str, columns: str, header: list[str], body:
         lines.extend([
             "\\setlength{\\tabcolsep}{3.0pt}",
             "\\renewcommand{\\arraystretch}{0.95}",
+        ])
+    elif wide_cols:
+        lines.extend([
+            "\\setlength{\\tabcolsep}{3.2pt}",
+            "\\renewcommand{\\arraystretch}{0.96}",
         ])
     lines.extend([
         f"\\begin{{tabular}}{{{columns}}}",
@@ -114,35 +127,63 @@ def tabela_precisao32(spmv: dict, numeric: dict, scaled: dict, matrices: list[st
         t32 = spmv[(m, "takum32", VLEN_REF)]
         b64 = numeric[(m, "binary32_acc64")]
         t32a32 = numeric[(m, "takum32_acc32")]
+        p32 = numeric[(m, "posit32")]
+        p32a32 = numeric[(m, "posit32_acc32")]
         t32sc = scaled[(m, "takum32")]
-        for key, row in (("fp32", base), ("takum32", t32), ("b64", b64), ("t32a32", t32a32), ("t32sc", t32sc)):
+        p32sc = scaled[(m, "posit32")]
+        for key, row in (
+            ("fp32", base),
+            ("takum32", t32),
+            ("b64", b64),
+            ("t32a32", t32a32),
+            ("p32", p32),
+            ("p32a32", p32a32),
+            ("t32sc", t32sc),
+            ("p32sc", p32sc),
+        ):
             cols[key].append(num(row))
         body.append(
             f"{name(m)} & {base['nnz']} & {cell(base)} & {cell(t32)} & "
-            f"{cell(b64)} & {cell(t32a32)} & {cell(t32sc)} \\\\"
+            f"{cell(b64)} & {cell(t32a32)} & {cell(p32)} & {cell(p32a32)} & {cell(t32sc)} \\\\"
         )
-    med_lbl = "Median" if lang == "en" else "Mediana"
+    med_lbl = "Median (unscaled)" if lang == "en" else "Mediana (s/ esc.)"
+    med_sc_lbl = "Median (scaled)" if lang == "en" else "Mediana (escalado)"
     footer = [
         "\\midrule",
         f"{med_lbl} & & " + " & ".join(
-            sci(st.median(cols[k])) for k in ("fp32", "takum32", "b64", "t32a32", "t32sc")
+            sci(st.median(cols[k])) for k in ("fp32", "takum32", "b64", "t32a32", "p32", "p32a32", "t32sc")
         ) + " \\\\",
+        f"{med_sc_lbl} & & " + " & ".join([
+            sci(st.median([num(scaled[(m, "binary32")]) for m in matrices])),
+            sci(st.median(cols["t32sc"])),
+            sci(st.median([num(scaled[(m, "binary32_acc64")]) for m in matrices])),
+            sci(st.median([num(scaled[(m, "takum32_acc32")]) for m in matrices])),
+            sci(st.median(cols["p32sc"])),
+            sci(st.median([num(scaled[(m, "posit32_acc32")]) for m in matrices])),
+            sci(st.median(cols["t32sc"])),
+        ]) + " \\\\",
     ]
     if lang == "en":
         cap = (
             "Relative $\\ell_2$ SpMV error at 32 bits (VLEN = 256) against Float128, by matrix. "
-            "FP32 and Takum32 are simulated RISC-V kernels (32-bit and 64-bit accumulators, respectively); "
-            "controls isolate accumulator width and \\texttt{pow2-bound} input scaling."
+            "FP32 and Takum32 are simulated RISC-V kernels; numeric controls isolate accumulator width "
+            "(64b vs. 32b), compare against Posit(32,2), and evaluate \\texttt{pow2-bound} scaling."
         )
-        hdr = ["Matrix", "nnz", "FP32 (32b acc.)", "Takum32 (64b acc.)", "FP32 (64b acc.)", "Takum32 (32b acc.)", "Takum32 (scaled)"]
+        hdr = [
+            "Matrix", "nnz", "FP32 (32b)", "Takum32 (64b)", "FP32 (64b)",
+            "Takum32 (32b)", "Posit32 (64b)", "Posit32 (32b)", "Takum32 (sc.)"
+        ]
     else:
         cap = (
             "Erro relativo $\\ell_2$ no SpMV em 32 bits (VLEN = 256) frente ao Float128, por matriz. "
-            "FP32 e Takum32 são kernels RISC-V simulados (acumuladores de 32 e 64 bits); os controles isolam "
-            "a largura do acumulador e o pré-escalonamento \\texttt{pow2-bound}."
+            "FP32 e Takum32 s\\~ao kernels RISC-V simulados; os controles isolam a largura do acumulador "
+            "(64b vs. 32b), comparam com Posit(32,2) e avaliam o escalonamento \\texttt{pow2-bound}."
         )
-        hdr = ["Matriz", "nnz", "FP32 (ac. 32b)", "Takum32 (ac. 64b)", "FP32 (ac. 64b)", "Takum32 (ac. 32b)", "Takum32 (esc.)"]
-    return table_block(cap, "tab:precisao32", "@{}lrccccc@{}", hdr, body, footer, star=True)
+        hdr = [
+            "Matriz", "nnz", "FP32 (32b)", "Takum32 (64b)", "FP32 (64b)",
+            "Takum32 (32b)", "Posit32 (64b)", "Posit32 (32b)", "Takum32 (esc.)"
+        ]
+    return table_block(cap, "tab:precisao32", "@{}lrccccccc@{}", hdr, body, footer, star=True, wide_cols=True)
 
 
 def tabela_precisao816(spmv: dict, numeric: dict, scaled: dict, matrices: list[str], lang: str) -> str:
@@ -150,19 +191,20 @@ def tabela_precisao816(spmv: dict, numeric: dict, scaled: dict, matrices: list[s
     for m in matrices:
         body.append(
             f"{name(m)} & {cell(numeric[(m, 'e4m3')])} & {cell(numeric[(m, 'e5m2')])} & "
+            f"{cell(numeric[(m, 'posit8_2')])} & {cell(spmv[(m, 'takum8', VLEN_REF)])} & "
             f"{cell(numeric[(m, 'binary16')])} & {cell(numeric[(m, 'bfloat16')])} & "
-            f"{cell(spmv[(m, 'takum16', VLEN_REF)])} & {cell(spmv[(m, 'takum8', VLEN_REF)])} \\\\"
+            f"{cell(numeric[(m, 'posit16')])} & {cell(spmv[(m, 'takum16', VLEN_REF)])} \\\\"
         )
 
-    fmts = ("e4m3", "e5m2", "binary16", "bfloat16", "takum16", "takum8")
+    fmts = ("e4m3", "e5m2", "posit8_2", "takum8", "binary16", "bfloat16", "posit16", "takum16")
     med_none = []
     med_scaled = []
     fin_none = []
     for f in fmts:
         vals_n = [num(numeric[(m, f)]) for m in matrices if num(numeric[(m, f)]) is not None]
         vals_s = [num(scaled[(m, f)]) for m in matrices if num(scaled[(m, f)]) is not None]
-        med_none.append(sci(st.median(vals_n)) if vals_n else "---")
-        med_scaled.append(sci(st.median(vals_s)) if vals_s else "---")
+        med_none.append(sci(st.median(vals_n)) if vals_n else "n/a")
+        med_scaled.append(sci(st.median(vals_s)) if vals_s else "n/a")
         fin_none.append(f"{len(vals_n)}/8")
 
     if lang == "en":
@@ -174,10 +216,10 @@ def tabela_precisao816(spmv: dict, numeric: dict, scaled: dict, matrices: list[s
         ]
         cap = (
             "Relative $\\ell_2$ SpMV error at 8 and 16 bits against Float128 (VLEN = 256). "
-            "NF($k$) denotes $k$ non-finite rows (overflow). Accumulators: 16-bit for E4M3, E5M2, Takum8; "
-            "32-bit for FP16, BF16, Takum16. Bottom rows summarize finite counts and \\texttt{pow2-bound} scaling."
+            "NF($k$) denotes $k$ non-finite rows (overflow). Accumulators: 16-bit for E4M3, E5M2, Posit8,2, and Takum8; "
+            "32-bit for FP16, bfloat16, Posit16,2, and Takum16."
         )
-        hdr = ["Matrix", "E4M3", "E5M2", "FP16", "bfloat16", "Takum16", "Takum8"]
+        hdr = ["Matrix", "E4M3", "E5M2", "Posit8,2", "Takum8", "FP16", "bfloat16", "Posit16,2", "Takum16"]
     else:
         footer = [
             "\\midrule",
@@ -187,11 +229,11 @@ def tabela_precisao816(spmv: dict, numeric: dict, scaled: dict, matrices: list[s
         ]
         cap = (
             "Erro relativo $\\ell_2$ no SpMV em 8 e 16 bits frente ao Float128 (VLEN = 256). "
-            "NF($k$) indica $k$ linhas não finitas (overflow). Acumuladores: 16 bits para E4M3, E5M2 e Takum8; "
-            "32 bits para FP16, bfloat16 e Takum16. O rodapé resume o efeito do escalonamento \\texttt{pow2-bound}."
+            "NF($k$) indica $k$ linhas n\\~ao finitas (overflow). Acumuladores: 16 bits para E4M3, E5M2, Posit8,2 e Takum8; "
+            "32 bits para FP16, bfloat16, Posit16,2 e Takum16."
         )
-        hdr = ["Matriz", "E4M3", "E5M2", "FP16", "bfloat16", "Takum16", "Takum8"]
-    return table_block(cap, "tab:precisao816", "@{}lcccccc@{}", hdr, body, footer, star=True)
+        hdr = ["Matriz", "E4M3", "E5M2", "Posit8,2", "Takum8", "FP16", "bfloat16", "Posit16,2", "Takum16"]
+    return table_block(cap, "tab:precisao816", "@{}lcccccccc@{}", hdr, body, footer, star=True, wide_cols=True)
 
 
 def tabela_suitesparse100(ss_rows: list[dict], lang: str) -> str:
@@ -225,16 +267,16 @@ def tabela_suitesparse100(ss_rows: list[dict], lang: str) -> str:
             body.append("\\midrule")
     if lang == "en":
         cap = (
-            "Conversion viability across 100 SuiteSparse matrices ($\\mathrm{nnz} \\le 50\\,000$): "
+            "Conversion viability across 100 SuiteSparse matrices ($\\mathrm{nnz} \\le 50\\,000$ declared, 80-bit \\texttt{long double} reference): "
             "Takum (Linear and Logarithmic), Posit ($es=2$), and IEEE/OCP formats."
         )
         hdr = ["Format", "Fin.", "Median", "P90", "Max"]
     else:
         cap = (
-            "Viabilidade de conversão em 100 matrizes SuiteSparse ($\\mathrm{nnz} \\le 50\\,000$): "
-            "Takum (Linear e Logarítmico), Posit ($es=2$) e formatos IEEE/OCP."
+            "Viabilidade de convers\\~ao em 100 matrizes SuiteSparse ($\\mathrm{nnz} \\le 50\\,000$ declarado, refer\\^encia \\texttt{long double} 80 bits): "
+            "Takum (Linear e Logar\\'itmico), Posit ($es=2$) e formatos IEEE/OCP."
         )
-        hdr = ["Fmt.", "Fin.", "Mediana", "P90", "Máx."]
+        hdr = ["Fmt.", "Fin.", "Mediana", "P90", "M\\'ax."]
     return table_block(cap, "tab:suitesparse100", "@{}lcccc@{}", hdr, body, [], star=False)
 
 
@@ -263,7 +305,7 @@ def tabela_contagens(spmv_rows: list[dict], lang: str) -> str:
         hdr = ["Fmt", "VLEN", "Insn/nnz", "Zvt./nnz", "CSR/nnz", "Elem./nnz"]
     else:
         cap = (
-            "Instruções dinâmicas, instruções \\texttt{Zvtakum}, escritas em CSR e elementos ativos por não nulo, "
+            "Instru\\c{c}\\~oes din\\^amicas, instru\\c{c}\\~oes \\texttt{Zvtakum}, escritas em CSR e elementos ativos por n\\~ao nulo, "
             "agregados nas oito matrizes Harwell--Boeing."
         )
         hdr = ["Fmt", "VLEN", "Insn/nnz", "Zvt./nnz", "CSR/nnz", "Elem./nnz"]
@@ -287,10 +329,10 @@ def tabela_modelo(model_rows: list[dict], lang: str) -> str:
         hdr = ["Format", "$r$", "$c$", "$K$", "Synthetic", "Exact runs"]
     else:
         cap = (
-            "Parâmetros do modelo analítico de contagem $N_f = r_f R + c_f S + K$, em que $R$ é o número de linhas "
-            "e $S$ o total de faixas não vazias nas 96 execuções do simulador."
+            "Par\\^ametros do modelo anal\\'itico de contagem $N_f = r_f R + c_f S + K$, em que $R$ \\'e o n\\'umero de linhas "
+            "e $S$ o total de faixas n\\~ao vazias nas 96 execu\\c{c}\\~oes do simulador."
         )
-        hdr = ["Formato", "$r$", "$c$", "$K$", "Sintéticos", "Execuções exatas"]
+        hdr = ["Formato", "$r$", "$c$", "$K$", "Sint\\'eticos", "Execu\\c{c}\\~oes exatas"]
     return table_block(cap, "tab:modelo", "@{}lcccrr@{}", hdr, body, [], star=False)
 
 
@@ -333,7 +375,7 @@ def macros(spmv_rows: list[dict], numeric_rows: list[dict], scaled_rows: list[di
     numeric = {(r["matrix"], r["format"]): r for r in numeric_rows}
     scaled = {(r["matrix"], r["format"]): r for r in scaled_rows}
     matrices = sorted({r["matrix"] for r in spmv_rows})
-    out = ["% Gerado por paper/gera_tabelas.py. Não editar à mão."]
+    out = ["% Gerado por paper/gera_tabelas.py. N\\~ao editar \\`a m\\~ao."]
 
     def add(key: str, value: str) -> None:
         out.append(f"\\newcommand{{\\{key}}}{{{value}\\xspace}}")
@@ -360,11 +402,19 @@ def macros(spmv_rows: list[dict], numeric_rows: list[dict], scaled_rows: list[di
     add("MedFPtrintaAcSes", sci(med_num(numeric, "binary32_acc64")))
     add("MedTakumTrintaAcTrinta", sci(med_num(numeric, "takum32_acc32")))
     add("MedTakumTrintaScaled", sci(med_num(scaled, "takum32")))
+    add("MedPositTrinta", sci(med_num(numeric, "posit32")))
+    add("MedPositTrintaAcTrinta", sci(med_num(numeric, "posit32_acc32")))
+    add("MedPositTrintaScaled", sci(med_num(scaled, "posit32")))
+
     add("MedBF", sci(med_num(numeric, "bfloat16")))
     add("MedTakumDez", sci(med_spmv("takum16")))
     add("MedTakumDezScaled", sci(med_num(scaled, "takum16")))
+    add("MedPositDez", sci(med_num(numeric, "posit16")))
+    add("MedPositDezScaled", sci(med_num(scaled, "posit16")))
     add("MedTakumOito", sci(med_spmv("takum8")))
     add("MedTakumOitoScaled", sci(med_num(scaled, "takum8")))
+    add("MedPositOito", sci(med_num(numeric, "posit8_2")))
+    add("MedPositOitoScaled", sci(med_num(scaled, "posit8_2")))
 
     add("RazaoFormatoAcTrinta", ratio(med_num(numeric, "binary32") / med_num(numeric, "takum32_acc32")))
     add("RazaoAcumuladorTakum", ratio(med_num(numeric, "takum32_acc32") / med_spmv("takum32")))
@@ -384,10 +434,14 @@ def macros(spmv_rows: list[dict], numeric_rows: list[dict], scaled_rows: list[di
     pares = {
         "TrintaFP": (takum32, [(num(spmv[(m, "fp32", VLEN_REF)]), 0) for m in matrices]),
         "TrintaAcFP": (takum32_acc32, other(numeric, "binary32")),
+        "TrintaPosit": (takum32, other(numeric, "posit32")),
+        "TrintaAcPosit": (takum32_acc32, other(numeric, "posit32_acc32")),
         "DezFP": (takum16, other(numeric, "binary16")),
         "DezBF": (takum16, other(numeric, "bfloat16")),
+        "DezPosit": (takum16, other(numeric, "posit16")),
         "OitoEquatrom": (takum8, other(numeric, "e4m3")),
         "OitoCincodois": (takum8, other(numeric, "e5m2")),
+        "OitoPosit": (takum8, other(numeric, "posit8_2")),
     }
     for tag, (takum, reference) in pares.items():
         stats = pair_stats(takum, reference)
@@ -396,6 +450,7 @@ def macros(spmv_rows: list[dict], numeric_rows: list[dict], scaled_rows: list[di
 
     add("NFTakumOito", str(sum(1 for m in matrices if num(spmv[(m, "takum8", VLEN_REF)]) is None)))
     add("NFTakumDez", str(sum(1 for m in matrices if num(spmv[(m, "takum16", VLEN_REF)]) is None)))
+    add("NFPositOito", str(sum(1 for m in matrices if int(numeric[(m, "posit8_2")]["nonfinite"]) > 0)))
     add("NFEquatrom", str(sum(1 for m in matrices if int(numeric[(m, "e4m3")]["nonfinite"]) > 0)))
     add("NFCincodois", str(sum(1 for m in matrices if int(numeric[(m, "e5m2")]["nonfinite"]) > 0)))
     add("NFDez", str(sum(1 for m in matrices if int(numeric[(m, "binary16")]["nonfinite"]) > 0)))

@@ -3,13 +3,15 @@
 
 Executa de ponta a ponta (sem apagar ELFs pré-montados caso llvm-mc não esteja no PATH):
   1. Compilação C++17 (núcleo Takum, testes e simulador RV64IM/RVV/Zvtakum);
-  2. Testes unitários da Fase 1 (C++ vetores dourados + Python racionais exatos + libtakum T8);
+  2. Testes unitários da Fase 1 (C++ vetores dourados + Python racionais exatos + libtakum T8/wide + Posit + binary128);
   3. Testes do simulador da Fase 2 (zt-test + difftest contra QEMU 10.2.2 e modelo Python);
   4. Kernels SpMV RISC-V (96 execuções bit-exatas no zt-sim) e modelo analítico de contagem;
   5. Baselines numéricos expandidos (IEEE FP16/FP32, bfloat16, OCP E4M3/E5M2 c/ e s/ saturação,
-     Takum8/16/32, nos cenários sem escala e pow2-bound, mais erros por linha vs Float128);
+     Posit8/16/32, Takum8/16/32 nos cenários sem escala e pow2-bound, mais erros por linha vs Float128)
+     e verificação do manifesto/conversão SuiteSparse-100;
   6. Geração de todas as tabelas LaTeX (EN/PT), macros e figuras vetoriais (matplotlib PDF/SVG);
-  7. Compilação dos diagramas TikZ, dos artigos IEEE (EN/PT) e dos slides.
+  7. Compilação dos diagramas TikZ, dos artigos IEEE (EN/PT) e dos slides;
+  8. Checagem do limite de 6 páginas, auditoria bibliográfica e manifesto de reprodutibilidade.
 
 Uso:
     python3 scripts/run_all.py
@@ -37,6 +39,18 @@ def run_step(title: str, cmd: list[str], cwd: pathlib.Path = ROOT) -> None:
     print(f"[OK] {title} concluída em {dt:.1f}s", flush=True)
 
 
+def check_pdf_pages(pdf_path: pathlib.Path, max_pages: int = 6) -> None:
+    if not pdf_path.is_file() or not shutil.which("pdfinfo"):
+        return
+    proc = subprocess.run(["pdfinfo", str(pdf_path)], capture_output=True, text=True, check=False)
+    for line in proc.stdout.splitlines():
+        if line.startswith("Pages:"):
+            pages = int(line.split(":", 1)[1].strip())
+            print(f"[CHECK] {pdf_path.name}: {pages} páginas (limite {max_pages})")
+            if pages > max_pages:
+                raise SystemExit(f"[ERRO] {pdf_path} excede {max_pages} páginas ({pages})")
+
+
 def main() -> int:
     t_start = time.monotonic()
 
@@ -44,20 +58,22 @@ def main() -> int:
     run_step("1. Build C++17 (takum-test, zt-sim, zt-test)",
              ["make", "build", "sim", "build/zt-test"])
 
-    # 2. Testes unitários Fase 1 (C++ + Python)
-    run_step("2a. Testes C++ do núcleo Takum (Fase 1)", ["./build/takum-test"])
-    run_step("2b. Testes Python (modelo exato, libtakum T8, binários IEEE/OFP8/BF16)",
+    # 2. Testes unitários (C++ + Python + Referências)
+    run_step("2a. Testes C++ do núcleo Takum (Fase 1 - 52 verificações)", ["./build/takum-test"])
+    run_step("2b. Testes C++ do simulador Zvtakum (Fase 2 - 29 verificações)", ["./build/zt-test"])
+    run_step("2c. Testes Python (modelo exato, libtakum, Posit, binary128)",
              [sys.executable, "-B", "-m", "unittest", "discover", "-s", "tests", "-v"],
              cwd=ROOT / "python")
+    run_step("2d. Auditoria bibliográfica offline",
+             [sys.executable, "tools/check_references.py", "--json", "references/audit.json"])
 
-    # 3. Testes do simulador Fase 2 (C++ + difftest QEMU/Python)
-    run_step("3a. Testes C++ do simulador Zvtakum (zt-test)", ["./build/zt-test"])
+    # 3. Verificação diferencial QEMU/Python
     if shutil.which("qemu-riscv64"):
-        run_step("3b. Verificação diferencial (QEMU 10.2.2 + modelo Python)",
+        run_step("3. Verificação diferencial (QEMU + modelo Python)",
                  [sys.executable, "tests/sim/difftest.py"])
     else:
         print("\n[AVISO] qemu-riscv64 ausente; executando apenas zvtakum_isa no difftest.")
-        run_step("3b. Verificação diferencial Zvtakum (modelo Python)",
+        run_step("3. Verificação diferencial Zvtakum (modelo Python)",
                  [sys.executable, "tests/sim/difftest.py", "--only", "zvtakum_isa"])
 
     # 4. Benchmarks SpMV no simulador e modelo analítico de instruções
@@ -66,9 +82,11 @@ def main() -> int:
     run_step("4b. Ajuste/verificação do modelo analítico N = rR + cS + K",
              [sys.executable, "kernels/modelo_contagem.py"])
 
-    # 5. Baselines numéricos expandidos (com/sem escala + distribuição por linha vs Float128)
-    run_step("5. Baselines numéricos expandidos (IEEE, OFP8, BF16, Takum vs Float128)",
+    # 5. Baselines numéricos e benchmark de conversão
+    run_step("5a. Baselines numéricos expandidos (IEEE, OFP8, BF16, Posit, Takum vs Float128)",
              [sys.executable, "kernels/numeric_baselines.py"])
+    run_step("5b. Verificação do manifesto SuiteSparse-100 e conversão binary128 local",
+             [sys.executable, "scripts/bench_suitesparse100.py"])
 
     # 6. Geração de tabelas LaTeX e gráficos vetoriais matplotlib
     run_step("6a. Geração das tabelas e macros LaTeX (EN/PT)",
@@ -78,14 +96,13 @@ def main() -> int:
 
     # 7. Compilação LaTeX (TikZ standalone + Artigos EN/PT + Slides)
     if shutil.which("pdflatex"):
-        run_step("7a. Compilação dos diagramas TikZ standalone",
-                 ["pdflatex", "-interaction=nonstopmode", "datapath_zvtakum.tex"],
-                 cwd=ROOT / "paper" / "figures")
-        run_step("7b. Compilação do diagrama TikZ PT standalone",
-                 ["pdflatex", "-interaction=nonstopmode", "datapath_zvtakum_pt.tex"],
-                 cwd=ROOT / "paper" / "figures")
+        for tex in ("datapath_zvtakum.tex", "datapath_zvtakum_pt.tex", "zvtakum-datapath.tex", "zvtakum-datapath-pt.tex"):
+            if (ROOT / "paper" / "figures" / tex).exists():
+                run_step(f"7a. Compilação TikZ ({tex})",
+                         ["pdflatex", "-interaction=nonstopmode", tex],
+                         cwd=ROOT / "paper" / "figures")
 
-        def compile_ieee_doc(step_label: str, stem: str, cwd: Path) -> None:
+        def compile_ieee_doc(step_label: str, stem: str, cwd: pathlib.Path) -> None:
             run_step(f"{step_label} (pass 1)",
                      ["pdflatex", "-interaction=nonstopmode", f"{stem}.tex"], cwd=cwd)
             if shutil.which("bibtex"):
@@ -95,23 +112,29 @@ def main() -> int:
             run_step(f"{step_label} (pass 3)",
                      ["pdflatex", "-interaction=nonstopmode", f"{stem}.tex"], cwd=cwd)
 
-        compile_ieee_doc("7c. Compilação do Artigo IEEE em Inglês (paper/main.pdf)",
+        compile_ieee_doc("7b. Compilação do Artigo IEEE em Inglês (paper/main.pdf)",
                          "main", ROOT / "paper")
+        check_pdf_pages(ROOT / "paper" / "main.pdf", 6)
         if (ROOT / "paper" / "main_pt.tex").exists():
-            compile_ieee_doc("7d. Compilação do Artigo IEEE em Português (paper/main_pt.pdf)",
+            compile_ieee_doc("7c. Compilação do Artigo IEEE em Português (paper/main_pt.pdf)",
                              "main_pt", ROOT / "paper")
+            check_pdf_pages(ROOT / "paper" / "main_pt.pdf", 6)
         if (ROOT / "slides" / "slides.tex").exists():
-            run_step("7e. Compilação dos slides Beamer (pass 1)",
+            run_step("7d. Compilação dos slides Beamer (pass 1)",
                      ["pdflatex", "-interaction=nonstopmode", "slides.tex"],
                      cwd=ROOT / "slides")
-            run_step("7f. Compilação dos slides Beamer (pass 2)",
+            run_step("7e. Compilação dos slides Beamer (pass 2)",
                      ["pdflatex", "-interaction=nonstopmode", "slides.tex"],
                      cwd=ROOT / "slides")
 
+    # 8. Manifesto de reprodutibilidade
+    run_step("8. Manifesto de reprodutibilidade",
+             [sys.executable, "tools/make_manifest.py"])
+
     total = time.monotonic() - t_start
-    print(f"\n==========================================")
+    print("\n==========================================")
     print(f"PIPELINE COMPLETO CONCLUÍDO COM SUCESSO em {total:.1f}s")
-    print(f"==========================================")
+    print("==========================================")
     return 0
 
 

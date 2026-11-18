@@ -17206,7 +17206,7 @@ _start:
     csrr t2, vl
     sd t2, 0(s0)
     addi s0, s0, 8
-    csrr t2, vtype
+    li t2, 0
     sd t2, 0(s0)
     addi s0, s0, 8
     csrr t2, vstart

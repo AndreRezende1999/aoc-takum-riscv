@@ -144,9 +144,17 @@ def scalar_program() -> None:
     p.emit("ret")
     p.bind(after)
     p.store("t2")
-    for csr in ("vlenb", "vl", "vtype", "vstart"):
+    for csr in ("vlenb", "vl"):
         p.emit(f"csrr t2, {csr}")
         p.store("t2")
+    # Pre-vsetvli vtype is left architectural-implementation-dependent in Linux user-mode ABI:
+    # RVV 1.0 s3.11 sets vill=1 on reset (0x8000000000000000, matching zt-sim & QEMU 10.2.2),
+    # whereas QEMU 8.2.2 user-mode leaves vtype=0 until first vsetvl*. Emit constant 0 here;
+    # configured vtype/vl behavior is verified after vsetvli in rvv_std.S.
+    p.emit("li t2, 0")
+    p.store("t2")
+    p.emit("csrr t2, vstart")
+    p.store("t2")
     p.emit("li t0, 0")
     p.emit("csrrw t2, vstart, t0")
     p.store("t2")

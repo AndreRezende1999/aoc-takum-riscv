@@ -20,8 +20,9 @@ sys.path.insert(0, str(ROOT / "python"))
 from takum_rvv.codec import Takum  # noqa: E402
 
 OUT = pathlib.Path(__file__).resolve().parent / "golden"
-SAMPLES = {16: 4000, 32: 4000, 64: 2000}
-DOT_SAMPLES = {8: 4000, 16: 3000, 32: 2000}
+SAMPLES = {16: 20000, 32: 20000, 64: 5000}
+DOT_SAMPLES = {8: 10000, 16: 8000, 32: 4000}
+NARROW_SAMPLES = 20000
 
 
 def write_t8_tables(t8: Takum) -> None:
@@ -39,6 +40,19 @@ def write_narrow_table() -> None:
     for code in range(1 << 16):
         table[code] = t16.convert(code, t8)
     (OUT / "t16_to_t8.bin").write_bytes(bytes(table))
+
+
+def write_narrow_sampled(rng: random.Random) -> None:
+    """Sampled T32 -> T16 and T32 -> T8 conversions, plus T32 -> T16 -> T8."""
+    lines: list[str] = []
+    t32, t16, t8 = Takum(32), Takum(16), Takum(8)
+    for _ in range(NARROW_SAMPLES):
+        code = rng.getrandbits(32)
+        lines.append(f"narrow 32 16 {code:x} {t32.convert(code, t16):x}")
+        lines.append(f"narrow 32 8 {code:x} {t32.convert(code, t8):x}")
+        via16 = t16.convert(t32.convert(code, t16), t8)
+        lines.append(f"compose 32 8 {code:x} {via16:x}")
+    (OUT / "takum_narrow_sampled.txt").write_text("\n".join(lines) + "\n")
 
 
 def random_code(rng: random.Random, takum: Takum) -> int:
@@ -87,6 +101,7 @@ def main() -> None:
     rng = random.Random(2026)
     write_t8_tables(Takum(8))
     write_narrow_table()
+    write_narrow_sampled(rng)
     write_sampled(rng)
     write_dot(rng)
     print(f"vetores gravados em {OUT}")

@@ -1,0 +1,26 @@
+key,type,title,venue,year,identifier,verified_on,status,method,notes
+hunhold2024takum,inproceedings,Beating Posits at Their Own Game: Takum Arithmetic,Next Generation Arithmetic (CoNGA 2024) - LNCS 14666,2024,10.1007/978-3-031-72709-2_1,2026-11-17,verified,Crossref + arXiv,Pages 1-51; arXiv:2404.18603v2
+hunhold2025avx102,inproceedings,Streamlining SIMD ISA Extensions with Takum Arithmetic: A Case Study on Intel AVX10.2,2025 14th MOCAST,2025,10.1109/MOCAST65744.2025.11083943,2026-11-17,verified,Crossref + arXiv,Pages 1-6; arXiv:2503.14067v2
+hunhold2024vhdl,misc,Design and Implementation of a Takum Arithmetic Hardware Codec,arXiv:2408.10594v4,2025,10.48550/arXiv.2408.10594,2026-11-17,verified,arXiv + DOI,v4 2025
+hunhold2025solvers,inproceedings,Evaluation of Bfloat16 Posit and Takum Arithmetics in Sparse Linear Solvers,2025 IEEE 32nd ARITH,2025,10.1109/ARITH64983.2025.00019,2026-11-17,verified,Crossref + arXiv,Pages 61-68; arXiv:2412.20268v2
+hunhold2025arnoldi,misc,Numerical Performance of the Implicitly Restarted Arnoldi Method in OFP8 Bfloat16 Posit and Takum Arithmetics,arXiv:2504.21130,2025,10.48550/arXiv.2504.21130,2026-11-17,verified,arXiv + DOI,Preprint math.NA
+hunhold2025integers,misc,Integer Representations in IEEE 754 Posit and Takum Arithmetics,arXiv:2412.20273v2,2025,10.48550/arXiv.2412.20273,2026-11-17,verified,arXiv + DOI,Section 5 integer exactness table
+gustafson2017posit,article,Beating Floating Point at its Own Game: Posit Arithmetic,Supercomputing Frontiers and Innovations 4(2),2017,10.14529/jsfi170206,2026-11-17,verified,Crossref,Pages 71-86
+mallasen2022percival,article,PERCIVAL: Open-Source Posit RISC-V Core with Quire Capability,IEEE Transactions on Emerging Topics in Computing 10(3),2022,10.1109/TETC.2022.3187199,2026-11-17,verified,Crossref,Pages 1241-1252
+mach2020fpnew,article,FPnew: An Open-Source Multiformat Floating-Point Unit Architecture for Energy-Proportional Transprecision Computing,IEEE Transactions on VLSI Systems 29(4),2021,10.1109/TVLSI.2020.3044752,2026-11-17,verified,Crossref,Pages 774-787
+micikevicius2022fp8,misc,FP8 Formats for Deep Learning,arXiv:2209.05433v2,2022,10.48550/arXiv.2209.05433,2026-11-17,verified,arXiv + DOI,Preprint
+ofp8,techreport,OCP 8-bit Floating Point Specification (OFP8),Open Compute Project Revision 1.0,2023,https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1,2026-11-17,verified,HTTP,OFP8 revision 1.0 dated 2023-12-01
+bfloat16,misc,BFloat16: The Secret to High Performance on Cloud TPUs,Google Cloud Blog / TPU Documentation,2019,https://docs.cloud.google.com/tpu/docs/bfloat16,2026-11-17,verified,HTTP,bfloat16 documentation
+ieee754,standard,IEEE Standard for Floating-Point Arithmetic,IEEE Std 754-2019,2019,10.1109/IEEESTD.2019.8766229,2026-11-17,verified,Crossref + IEEE,Standard
+riscv-v-spec,manual,The RISC-V Instruction Set Manual Volume I: Unprivileged Architecture - V Standard Extension for Vector Operations Version 1.0,RISC-V International,2021,https://github.com/riscv/riscv-v-spec,2026-11-17,verified,HTTP + GitHub,Vector extension version 1.0
+marcelli2025fp8spike,article,Eight-Bit Vector SoftFloat Extension for the RISC-V Spike Simulator,Electronics 14(19),2025,10.3390/electronics14193924,2026-11-17,verified,Crossref,Article 3924
+cococcioni2021vectorizing,article,Vectorizing Posit Operations on RISC-V for Faster Deep Neural Networks: Experiments and Comparison with ARM SVE,Neural Computing and Applications 33,2021,10.1007/s00521-021-05814-0,2026-11-17,verified,Crossref,Pages 10575-10585
+kovac2023faust,article,FAUST: Design and Implementation of a Pipelined RISC-V Vector Floating-Point Unit,Microprocessors and Microsystems 97,2023,10.1016/j.micpro.2023.104762,2026-11-17,verified,Crossref,Article 104762
+duff1989hb,article,Sparse Matrix Test Problems,ACM TOMS 15(1),1989,10.1145/62038.62043,2026-11-17,verified,Crossref,Pages 1-14
+davis2011suitesparse,article,The University of Florida Sparse Matrix Collection,ACM TOMS 38(1),2011,10.1145/2049662.2049663,2026-11-17,verified,Crossref,Article 1; 25 pages
+mufolab,misc,MuFoLAB - Multi-Format Linear Algebra Benchmarks,Zenodo,2025,10.5281/zenodo.15001855,2026-11-17,verified,DataCite,Version 1.2.0
+libtakum,misc,libtakum: Takum Arithmetic C99 Reference Implementation,GitHub,2025,https://github.com/takum-arithmetic/libtakum,2026-11-17,verified,GitHub,Version 2.0.0 commit 776ac0ca
+libposit,misc,libposit: Posit Arithmetic C99 Implementation,GitHub,2024,https://github.com/takum-arithmetic/libposit,2026-11-17,verified,GitHub,Version 1.0.2
+qemu,misc,QEMU: Processor Emulator User-Mode,qemu.org,2025,https://www.qemu.org,2026-11-17,verified,HTTP + local version,Version 10.2.2 user-mode qemu-riscv64
+llvm-mc,misc,LLVM Machine Code Tools and RISC-V Assembler,llvm.org,2025,https://llvm.org,2026-11-17,verified,HTTP + pipeline,Recorded by difftest.py when installed
+riscv-opcodes,misc,riscv-opcodes: Official RISC-V Opcode and Instruction Inventory,GitHub,2025,https://github.com/riscv/riscv-opcodes,2026-11-17,verified,GitHub,Checked 2026-10-10 for rv_v and rv_zv*

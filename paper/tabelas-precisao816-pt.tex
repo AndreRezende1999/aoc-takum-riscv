@@ -1,24 +1,26 @@
 \begin{table*}[t]
-\caption{Erro relativo $\ell_2$ no SpMV em 8 e 16 bits frente ao Float128 (VLEN = 256). NF($k$) indica $k$ linhas não finitas (overflow). Acumuladores: 16 bits para E4M3, E5M2 e Takum8; 32 bits para FP16, bfloat16 e Takum16. O rodapé resume o efeito do escalonamento \texttt{pow2-bound}.}
+\caption{Erro relativo $\ell_2$ no SpMV em 8 e 16 bits frente ao Float128 (VLEN = 256). NF($k$) indica $k$ linhas n\~ao finitas (overflow). Acumuladores: 16 bits para E4M3, E5M2, Posit8,2 e Takum8; 32 bits para FP16, bfloat16, Posit16,2 e Takum16.}
 \label{tab:precisao816}
 \centering
-\footnotesize
-\begin{tabular}{@{}lcccccc@{}}
+\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\renewcommand{\arraystretch}{0.96}
+\begin{tabular}{@{}lcccccccc@{}}
 \toprule
-Matriz & E4M3 & E5M2 & FP16 & bfloat16 & Takum16 & Takum8 \\
+Matriz & E4M3 & E5M2 & Posit8,2 & Takum8 & FP16 & bfloat16 & Posit16,2 & Takum16 \\
 \midrule
-bcsstk01 & NF(48) & NF(48) & NF(48) & $2.28 \times 10^{-3}$ & $3.24 \times 10^{-3}$ & $6.44 \times 10^{-1}$ \\
-bcsstk02 & NF(66) & $7.31 \times 10^{-2}$ & $3.76 \times 10^{-4}$ & $2.43 \times 10^{-3}$ & $1.20 \times 10^{-3}$ & $2.27 \times 10^{-1}$ \\
-jpwh\_991 & $3.45 \times 10^{-2}$ & $7.58 \times 10^{-2}$ & $2.77 \times 10^{-4}$ & $2.26 \times 10^{-3}$ & $3.04 \times 10^{-4}$ & $7.77 \times 10^{-2}$ \\
-pores\_1 & NF(30) & NF(15) & NF(15) & $1.53 \times 10^{-3}$ & $1.18 \times 10^{-3}$ & $8.58 \times 10^{-1}$ \\
-sherman1 & $3.95 \times 10^{-2}$ & $1.00 \times 10^{-1}$ & $3.06 \times 10^{-4}$ & $2.68 \times 10^{-3}$ & $2.28 \times 10^{-4}$ & $6.40 \times 10^{-2}$ \\
-well1033 & $4.24 \times 10^{-2}$ & $8.75 \times 10^{-2}$ & $3.54 \times 10^{-4}$ & $2.53 \times 10^{-3}$ & $2.62 \times 10^{-4}$ & $6.47 \times 10^{-2}$ \\
-west0067 & $3.43 \times 10^{-2}$ & $8.74 \times 10^{-2}$ & $3.36 \times 10^{-4}$ & $2.52 \times 10^{-3}$ & $1.76 \times 10^{-4}$ & $5.18 \times 10^{-2}$ \\
-west0132 & NF(17) & NF(3) & NF(3) & $1.47 \times 10^{-3}$ & $1.40 \times 10^{-3}$ & $1.21 \times 10^{0}$ \\
+bcsstk01 & NF(48) & NF(48) & $9.91 \times 10^{-1}$ & $6.44 \times 10^{-1}$ & NF(48) & $2.28 \times 10^{-3}$ & $1.17 \times 10^{-2}$ & $3.24 \times 10^{-3}$ \\
+bcsstk02 & NF(66) & $7.31 \times 10^{-2}$ & $2.06 \times 10^{-1}$ & $2.27 \times 10^{-1}$ & $3.76 \times 10^{-4}$ & $2.43 \times 10^{-3}$ & $1.14 \times 10^{-3}$ & $1.20 \times 10^{-3}$ \\
+jpwh\_991 & $3.45 \times 10^{-2}$ & $7.58 \times 10^{-2}$ & $3.45 \times 10^{-2}$ & $7.77 \times 10^{-2}$ & $2.77 \times 10^{-4}$ & $2.26 \times 10^{-3}$ & $1.44 \times 10^{-4}$ & $3.04 \times 10^{-4}$ \\
+pores\_1 & NF(30) & NF(15) & $4.86 \times 10^{-1}$ & $8.58 \times 10^{-1}$ & NF(15) & $1.53 \times 10^{-3}$ & $7.56 \times 10^{-3}$ & $1.18 \times 10^{-3}$ \\
+sherman1 & $3.95 \times 10^{-2}$ & $1.00 \times 10^{-1}$ & $3.95 \times 10^{-2}$ & $6.40 \times 10^{-2}$ & $3.06 \times 10^{-4}$ & $2.68 \times 10^{-3}$ & $1.66 \times 10^{-4}$ & $2.28 \times 10^{-4}$ \\
+well1033 & $4.24 \times 10^{-2}$ & $8.75 \times 10^{-2}$ & $4.26 \times 10^{-2}$ & $6.47 \times 10^{-2}$ & $3.54 \times 10^{-4}$ & $2.53 \times 10^{-3}$ & $1.63 \times 10^{-4}$ & $2.62 \times 10^{-4}$ \\
+west0067 & $3.43 \times 10^{-2}$ & $8.74 \times 10^{-2}$ & $3.41 \times 10^{-2}$ & $5.18 \times 10^{-2}$ & $3.36 \times 10^{-4}$ & $2.52 \times 10^{-3}$ & $1.60 \times 10^{-4}$ & $1.76 \times 10^{-4}$ \\
+west0132 & NF(17) & NF(3) & $2.75 \times 10^{-1}$ & $1.21 \times 10^{0}$ & NF(3) & $1.47 \times 10^{-3}$ & $1.37 \times 10^{-3}$ & $1.40 \times 10^{-3}$ \\
 \midrule
-Finitas (sem escala) & 4/8 & 5/8 & 5/8 & 8/8 & 8/8 & 8/8 \\
-Mediana (sem escala, finitas) & $3.70 \times 10^{-2}$ & $8.74 \times 10^{-2}$ & $3.36 \times 10^{-4}$ & $2.36 \times 10^{-3}$ & $7.43 \times 10^{-4}$ & $1.52 \times 10^{-1}$ \\
-Mediana (\texttt{pow2-bound}, 8/8) & $3.45 \times 10^{-2}$ & $8.78 \times 10^{-2}$ & $3.21 \times 10^{-4}$ & $2.36 \times 10^{-3}$ & $3.09 \times 10^{-4}$ & $8.39 \times 10^{-2}$ \\
+Finitas (sem escala) & 4/8 & 5/8 & 8/8 & 8/8 & 5/8 & 8/8 & 8/8 & 8/8 \\
+Mediana (sem escala, finitas) & $3.70 \times 10^{-2}$ & $8.74 \times 10^{-2}$ & $1.24 \times 10^{-1}$ & $1.52 \times 10^{-1}$ & $3.36 \times 10^{-4}$ & $2.36 \times 10^{-3}$ & $6.54 \times 10^{-4}$ & $7.43 \times 10^{-4}$ \\
+Mediana (\texttt{pow2-bound}, 8/8) & $3.45 \times 10^{-2}$ & $8.78 \times 10^{-2}$ & $3.83 \times 10^{-2}$ & $8.39 \times 10^{-2}$ & $3.21 \times 10^{-4}$ & $2.36 \times 10^{-3}$ & $1.79 \times 10^{-4}$ & $3.09 \times 10^{-4}$ \\
 \bottomrule
 \end{tabular}
 \end{table*}

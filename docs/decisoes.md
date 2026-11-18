@@ -58,9 +58,10 @@ foi feito nesta branch (`refactor/zvtakum-cpp`).
 
 ## D9 — Oráculo para instruções padrão
 
-* **Status:** adotada.
+* **Status:** adotada e revisada contra RVV 1.0 §3.11.
 * **Decisão:** QEMU 10.2.2 user-mode, com `-cpu rv64,v=true,vlen=V,elen=64,vext_spec=v1.0,rvv_ta_all_1s=true,rvv_ma_all_1s=true`, para escalar e RVV padrão. Não se usa Spike.
 * **Motivação:** o QEMU está instalado e implementa a RVV 1.0. A branch Python havia excluído o Spike por decisão registrada; esta branch não depende dele. As opções `rvv_ta_all_1s` e `rvv_ma_all_1s` alinham o QEMU à política agnóstica do simulador (D11).
+* **Achado sobre `vtype` antes de `vsetvli`:** na versão anterior de `tests/sim/asm/scalar_ops.S`, uma leitura `csrr t2, vtype` executada antes do primeiro `vsetvli` produzia `0x8000000000000000` (`vill=1`) no `zt-sim` e no QEMU 10.2.2, mas `0` no QEMU 8.2.2 user-mode. Pela Seção 3.11 da especificação RVV 1.0, o estado de reset define `vtype.vill = 1` com os demais bits em zero até o primeiro `vsetvli`. Optamos por **preservar `vill=1` no reset de `src/machine.cpp` e verificá-lo explicitamente em `tests/sim/test_main.cpp`**, retirando a leitura pré-`vsetvli` de `scalar_ops.S` (com ELF regenerado em `build/asm/scalar_ops.elf`) para que o teste diferencial em `tests/sim/difftest.py` valide estado pós-`vsetvli` independente da versão de QEMU, registrando explicitamente as versões de `qemu-riscv64` e `llvm-mc` em cada execução.
 
 ## D11 — Política de elementos agnósticos
 
@@ -82,8 +83,8 @@ foi feito nesta branch (`refactor/zvtakum-cpp`).
 * **Decisão:** comparações entre formatos são feitas por matriz (mesma matriz e mesmo x), reportando vitórias, derrotas, empates e resultados não finitos. Medianas resumem uma coluna, mas não comparam conjuntos de matrizes diferentes.
 * **Motivação:** a primeira versão comparava a mediana de binary16 (cinco matrizes finitas) com a de Takum16 (oito), o que não é comparação válida. A análise pareada inverteu uma conclusão do artigo.
 
-## D10 — Protocolo de representação (1401 matrizes)
+## D10 — Protocolo de representação (SuiteSparse-100 e 1401 matrizes)
 
-* **Status:** não executada nesta branch.
-* **Motivo:** o MuFoLAB exige Julia ≥ 1.11, que não está instalada na máquina. A rodada completa levaria horas e os desvios do protocolo (regra de falha do MuFoLAB, E4M3 IEEE e referência binary64, documentados na conversa anterior) precisam ser decididos antes.
-* **Consequência:** os resultados de representação do artigo ainda são os da versão anterior (100 matrizes, referência long double). O artigo declara isso explicitamente.
+* **Status:** reproduzido em Python no recorte local/fechamento; descarga em massa de SuiteSparse bloqueada pelo servidor remoto.
+* **Motivo original:** o MuFoLAB exige Julia ≥ 1.11, não instalada na máquina. Os arquivos históricos `results/suitesparse100_conversion.csv` e `results/closure_takum_linear_log.csv` vieram da rodada C11 com referência `long double` de 80 bits.
+* **Atualização de revisão final:** reescrevemos ambos os geradores no pacote `takum_rvv`: `scripts/bench_closure.py` reproduz integralmente as 28 linhas de `results/closure_takum_linear_log.csv` (T8 exaustivo em $[2^{-24}, 2^{24}]$ e T16 com $2{.}000{.}000$ pares em $[2^{-56}, 2^{56}]$) usando `LogTakum` com `Decimal(prec=80)` e `Fraction`; e `scripts/bench_suitesparse100.py` implementa as 15 colunas com oráculo `BINARY128` (`Float128`), pareado com `results/suitesparse100_manifest.json` (nome, URL, data e SHA-256 das 100 matrizes). Como `sparse.tamu.edu` bloqueou requisições automatizadas (`HTTP 403`), mantemos o CSV histórico documentado explicitamente como `long double` de 80 bits para SuiteSparse-100 e validamos o novo gerador `binary128` localmente sobre as 8 matrizes Harwell-Boeing em `artifacts/hb_conversion_binary128.csv`. Por contraste, toda a avaliação SpMV (`results/spmv_numerico*.csv`) usa `BINARY128` e inclui controles em `Posit(8/16/32, 2)`.

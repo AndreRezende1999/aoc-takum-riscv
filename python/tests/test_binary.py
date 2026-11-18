@@ -1,4 +1,4 @@
-"""Independent fixtures and stdlib oracles for finite binary arithmetic (including bfloat16 and saturating FP8)."""
+"""Independent fixtures and stdlib oracles for finite binary arithmetic."""
 
 from dataclasses import FrozenInstanceError, replace
 from fractions import Fraction as F
@@ -7,21 +7,19 @@ import random
 import struct
 import unittest
 
-from takum_rvv.binary import (
-    BinaryFormat,
-    BFLOAT16,
-    E4M3,
-    E4M3_SAT,
-    E5M2,
-    E5M2_SAT,
-    BINARY16,
-    BINARY32,
-    BINARY64,
-    BINARY128,
-)
+try:
+    from takum_rvv.binary import (
+        BinaryFormat, E4M3, E4M3_SAT, E5M2, E5M2_SAT,
+        BFLOAT16, BINARY16, BINARY32, BINARY64, BINARY128,
+    )
+except ImportError:
+    BinaryFormat = None
 
 
 class BinaryTests(unittest.TestCase):
+    def setUp(self):
+        self.assertIsNotNone(BinaryFormat, "The binary reference is not implemented")
+
     def test_known_fp8_encodings(self):
         fixtures = (
             (E4M3, {0: F(0), 1: F(1, 512), 7: F(7, 512), 8: F(1, 64),
@@ -37,10 +35,36 @@ class BinaryTests(unittest.TestCase):
                     self.assertEqual(fmt.decode(raw), value)
                     self.assertEqual(fmt.encode(value), raw)
 
-    def test_known_ieee_and_bfloat16_encodings(self):
+    def test_known_bfloat16_encodings(self):
+        for raw, value in {
+            0x0000: F(0),
+            0x3F80: F(1),
+            0x3F00: F(1, 2),
+            0x4000: F(2),
+            0xBF80: F(-1),
+            0x7F7F: F(255, 128) * F(2**127),
+            0x0001: F(1, 2**133),
+            0x7FC0: None,
+            0xFFC0: None,
+        }.items():
+            with self.subTest(raw=hex(raw)):
+                if value is None:
+                    self.assertIsNone(BFLOAT16.decode(raw))
+                else:
+                    self.assertEqual(BFLOAT16.decode(raw), value)
+        self.assertEqual(BFLOAT16.encode(1), 0x3F80)
+        self.assertEqual(BFLOAT16.encode(F(1, 2)), 0x3F00)
+        self.assertEqual(BFLOAT16.encode(-1), 0xBF80)
+        self.assertIsNone(BFLOAT16.decode(BFLOAT16.encode(None)))
+        self.assertEqual(BFLOAT16.encode(1 + F(1, 128)), 0x3f81)
+        self.assertEqual(BFLOAT16.encode(1 + F(1, 256)), 0x3f80)
+        self.assertEqual(BFLOAT16.encode(1 + F(3, 256)), 0x3f82)
+        self.assertEqual(BFLOAT16.encode(F(256 * 2**120)), 0x7f80)
+        self.assertIsNone(BFLOAT16.decode(0x7f80))
+        self.assertEqual(BFLOAT16.decode(0x0080), F(1, 2**126))
+
         for fmt, one, half, negative_one, smallest, largest in (
             (BINARY16, 0x3c00, 0x3800, 0xbc00, F(1, 2**24), F(65504)),
-            (BFLOAT16, 0x3f80, 0x3f00, 0xbf80, F(1, 2**133), F(255 * 2**120)),
             (BINARY32, 0x3f800000, 0x3f000000, 0xbf800000,
              F(1, 2**149), F((2**24 - 1) * 2**104)),
             (BINARY64, 0x3ff0000000000000, 0x3fe0000000000000,
@@ -56,18 +80,6 @@ class BinaryTests(unittest.TestCase):
                 self.assertEqual(fmt.decode(1), smallest)
                 self.assertEqual(fmt.encode(smallest), 1)
                 self.assertEqual(fmt.decode(fmt.encode(largest)), largest)
-
-    def test_bfloat16_ties_and_upper_binary32_alignment(self):
-        # Upper 16 bits of exact binary32 encodings match bfloat16 encodings
-        self.assertEqual(BFLOAT16.encode(1 + F(1, 128)), 0x3f81)
-        self.assertEqual(BFLOAT16.encode(1 + F(1, 256)), 0x3f80)  # tie to even
-        self.assertEqual(BFLOAT16.encode(1 + F(3, 256)), 0x3f82)  # tie to even
-        self.assertEqual(BFLOAT16.encode(F(255 * 2**120)), 0x7f7f)
-        self.assertEqual(BFLOAT16.encode(F(256 * 2**120)), 0x7f80)  # Inf
-        self.assertIsNone(BFLOAT16.decode(0x7f80))
-        self.assertIsNone(BFLOAT16.decode(0xff80))
-        self.assertEqual(BFLOAT16.decode(0x0080), F(1, 2**126))
-        self.assertEqual(BFLOAT16.encode(F(1, 2**133)), 0x0001)
 
     def test_fp8_exhaustive_finite_roundtrip(self):
         for fmt, nonfinite in (
@@ -100,7 +112,6 @@ class BinaryTests(unittest.TestCase):
         for value in (F(1857, 4), 480, 512, 10**20):
             self.assertEqual(E4M3.encode(value), 0x7f)
             self.assertIsNone(E4M3.decode(E4M3.encode(-value)))
-        # Saturating OCP FP8 modes clamp finite overflow to max finite (448 / 57344)
         self.assertEqual(E4M3_SAT.encode(480), 0x7e)
         self.assertEqual(E4M3_SAT.encode(-10**20), 0xfe)
         self.assertEqual(E4M3_SAT.mul(0x7e, 0x40), 0x7e)
@@ -108,6 +119,15 @@ class BinaryTests(unittest.TestCase):
         self.assertEqual(E5M2_SAT.encode(61440), 0x7b)
         self.assertEqual(E5M2_SAT.encode(-10**20), 0xfb)
         self.assertIsNone(E5M2_SAT.decode(E5M2_SAT.encode(None)))
+
+    def test_e5m2_and_ieee_overflow_boundaries(self):
+        self.assertEqual(E5M2.encode(57345), 0x7b)
+        self.assertEqual(E5M2.encode(61439), 0x7b)
+        self.assertEqual(E5M2.encode(61440), 0x7c)
+        self.assertEqual(E5M2.encode(-61440), 0xfc)
+        self.assertEqual(BINARY16.encode(65519), 0x7bff)
+        self.assertEqual(BINARY16.encode(65520), 0x7c00)
+        self.assertEqual(BINARY16.encode(-65520), 0xfc00)
 
     def test_saturation_only_clamps_finite_overflow(self):
         for fmt, maximum in ((E4M3, 0x7e), (E5M2, 0x7b), (BINARY16, 0x7bff)):
@@ -117,10 +137,49 @@ class BinaryTests(unittest.TestCase):
             self.assertIsNone(sat.decode(sat.encode(None)))
             self.assertIsNone(sat.decode(sat.mul(sat.encode(None), sat.encode(0))))
 
+    def test_binary128_has_113_significant_bits(self):
+        one = 0x3fff << 112
+        self.assertEqual(BINARY128.encode(1 + F(1, 2**113)), one)
+        self.assertEqual(BINARY128.encode(1 + F(3, 2**113)), one + 2)
+        self.assertEqual(BINARY128.encode(1 + F(1, 2**112)), one + 1)
+        self.assertEqual(BINARY128.decode(one + 1), 1 + F(1, 2**112))
+        self.assertEqual(BINARY128.encode(F(1, 2**16495)), 0)
+        self.assertEqual(BINARY128.encode(F(3, 2**16495)), 2)
+
+    def test_exact_rational_operations_round_after_each_operation(self):
+        self.assertEqual(E4M3.add(0x38, 0x38), 0x40)
+        self.assertEqual(E4M3.sub(0x40, 0x38), 0x38)
+        self.assertEqual(E4M3.mul(0x3c, 0x40), 0x44)
+        self.assertEqual(E4M3.sub(E4M3.add(0x38, 0x18), 0x38), 0)
+        self.assertEqual(E4M3.mul(0x7e, 0x40), 0x7f)
+        one = 0x3fff << 112
+        self.assertEqual(BINARY128.sub(one + 1, one), (16383 - 112) << 112)
+        self.assertEqual(BINARY128.mul(one + 1, one + 1), one + 2)
+
+    def test_nonfinite_inputs_propagate_as_canonical_nan(self):
+        for fmt in (E4M3, E5M2, BINARY16, BINARY32, BINARY64, BINARY128):
+            nan = fmt.encode(None)
+            self.assertIsNone(fmt.decode(nan))
+            for op in (fmt.add, fmt.sub, fmt.mul):
+                self.assertEqual(op(nan, fmt.encode(0)), nan)
+                self.assertEqual(op(fmt.encode(1), nan), nan)
+        self.assertEqual(BINARY16.encode(None), 0x7e00)
+        self.assertIsNone(BINARY16.decode(0x7c00))
+        self.assertIsNone(BINARY16.decode(0xfc00))
+
+    def test_string_input_and_documented_zero_policy(self):
+        self.assertEqual(BINARY32.encode("0.1"), 0x3dcccccd)
+        for text in ("-0", " -0.000 ", "-0e10", "-0/7"):
+            self.assertEqual(BINARY16.encode(text), 0x8000)
+        self.assertEqual(BINARY16.decode(0x8000), F(0))
+        self.assertEqual(BINARY16.add(0x8000, 0x8000), 0)
+        self.assertEqual(BINARY16.mul(0x8000, 0x3c00), 0)
+        self.assertEqual(BINARY16.encode(F(-1, 2**26)), 0x8000)
+
     def test_random_finite_encodings_and_rounding_match_struct(self):
         rng = random.Random(20261005)
         for fmt, code, width in ((BINARY16, "e", 2), (BINARY32, "f", 4), (BINARY64, "d", 8)):
-            for _ in range(200):
+            for _ in range(400):
                 raw = rng.getrandbits(fmt.bits)
                 value = struct.unpack(">" + code, raw.to_bytes(width, "big"))[0]
                 if not math.isfinite(value) or value == 0:
@@ -128,6 +187,10 @@ class BinaryTests(unittest.TestCase):
                 exact = F.from_float(value)
                 self.assertEqual(fmt.decode(raw), exact)
                 self.assertEqual(fmt.encode(exact), raw)
+            for _ in range(600):
+                value = math.ldexp(rng.uniform(-2, 2), rng.randint(-25, 15))
+                expected = int.from_bytes(struct.pack(">" + code, value), "big")
+                self.assertEqual(fmt.encode(F.from_float(value)), expected)
 
     def test_invalid_inputs_and_configuration_are_rejected(self):
         for raw in (-1, 256):
@@ -137,6 +200,10 @@ class BinaryTests(unittest.TestCase):
             E4M3.decode(F(1, 2))
         with self.assertRaises(TypeError):
             E4M3.encode(0.1)
+        with self.assertRaises(ValueError):
+            BinaryFormat(8, 4, 4, "bad")
+        with self.assertRaises(ValueError):
+            BinaryFormat(3, 1, 1, "bad")
         with self.assertRaises(FrozenInstanceError):
             E4M3.bits = 16
 

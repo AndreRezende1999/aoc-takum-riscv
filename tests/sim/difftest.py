@@ -68,11 +68,23 @@ def run_qemu(elf: pathlib.Path, vlen: int) -> tuple[bytes, int]:
     return proc.stdout, proc.returncode
 
 
+def tool_version(*cmd: str) -> str:
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        out = (proc.stdout or proc.stderr).strip()
+        return out.splitlines()[0] if out else "desconhecida"
+    except OSError:
+        return "ausente"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--vlen", type=int, nargs="+", default=[128, 256, 512])
     parser.add_argument("--only", default=None, help="nome do programa, sem extensão")
     args = parser.parse_args()
+
+    print(f"[ferramentas] qemu-riscv64: {tool_version(QEMU, '--version')}")
+    print(f"[ferramentas] llvm-mc:      {tool_version('llvm-mc', '--version')}")
 
     sources = sorted(ASM.glob("*.S"))
     if args.only:

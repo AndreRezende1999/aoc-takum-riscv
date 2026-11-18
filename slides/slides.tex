@@ -14,7 +14,7 @@
 \input{../paper/numeros.tex}
 
 \title[Takum na RVV (Zvtakum)]{Implementação e Avaliação do Formato Aritmético Takum na Extensão Vetorial RISC-V (Zvtakum)}
-\subtitle{Projeto Integrador --- Arquitetura e Organização de Computadores (DELT/UFMG)}
+\subtitle{Projeto Integrador de Arquitetura e Organização de Computadores (DELT/UFMG)}
 \author[Rezende, Fontes, Lopes, Brito]{André Luís Alves Rezende \and Gabriel Ramos Fontes \and Isadora Maria Carvalho Lopes \and João Pedro Santos de Brito}
 \institute[DELT/UFMG]{Departamento de Engenharia Eletrônica (DELT) -- Universidade Federal de Minas Gerais}
 \date[2026/02]{Semestre 2026/02}
@@ -84,9 +84,9 @@
 		          \item Extrai prefixo de $n$ bits ($L$), bit $(n+1)$ de meio-ponto ($m$) e \emph{sticky} ($st$); incrementa $L \to L+1 \iff m=1 \land (st \lor (L\bmod 2 = 1))$, saturando em $[1, 2^{n-1}-1]$.
 		          \item Na fronteira $p=0$ de \texttt{T8}, o ponto médio no código é geométrico ($2^{-231}$ entre $2^{-239}$ e $2^{-223}$).
 		      \end{itemize}
-		\item \textbf{Por que não usar \texttt{double} do host (\texttt{libtakum}):}
+		\item \textbf{Alternativa sem \texttt{double} do host (\texttt{libtakum}):}
 		      \begin{itemize}
-		          \item Descobrimos \textbf{128/30.000 divergências de 1~ULP em \texttt{T32}} (ex.: \texttt{0x40000001} $\times$ \texttt{0x44000001}) onde a \texttt{libtakum} sofre \textbf{duplo arredondamento} ao passar por \texttt{double} antes de codificar.
+		          \item Em \textbf{30.000 amostras \texttt{T32}} ($10.000$ por op.), a \texttt{libtakum} diverge em \textbf{128/10.000 multiplicações de 1~ULP} (ex.: \texttt{0x40000001} $\times$ \texttt{0x44000001}) por duplo arredondamento ao passar por \texttt{double} antes de codificar.
 		      \end{itemize}
 	\end{itemize}
 \end{frame}
@@ -133,17 +133,18 @@
 	\scriptsize
 	\begin{table}
 		\centering
-		\setlength{\tabcolsep}{4pt}
-		\renewcommand{\arraystretch}{1.18}
-		\begin{tabular}{@{}p{0.17\textwidth}p{0.25\textwidth}p{0.22\textwidth}p{0.29\textwidth}@{}}
+		\setlength{\tabcolsep}{3.5pt}
+		\renewcommand{\arraystretch}{1.12}
+		\begin{tabular}{@{}p{0.18\textwidth}p{0.25\textwidth}p{0.22\textwidth}p{0.29\textwidth}@{}}
 			\toprule
 			\textbf{Eixo de Projeto} & \textbf{Opções Consideradas} & \textbf{Decisão Tomada} & \textbf{Justificativa Técnica} \\
 			\midrule
-			\textbf{1. Variante Takum} & Logarítmica (Def.~2, LUTs $\Delta_\pm$) vs.\ Linear (Def.~8) & \textbf{Takum Linear (Def.~8)} & Mantém soma/multiplicação em inteiros compatíveis com ULAs SIMD da RVV sem ROMs não lineares. \\
+			\textbf{1. Variante Takum} & Logarítmica (Def.~2, LUTs $\Delta_\pm$) vs.\ Linear (Def.~8) & \textbf{Takum Linear (Def.~8)} & Mantém adição e multiplicação em ULA inteira compatível com SIMD da RVV sem ROMs não lineares. \\
 			\textbf{2. Espaço de Opcode} & Sobrecarregar \texttt{OP-V} (\texttt{0x57}) vs.\ \texttt{custom-0} (\texttt{0x0B}) & \textbf{\texttt{custom-0} (\texttt{0x0B}, \texttt{funct3=0})} & Auditoria no \texttt{riscv-opcodes} mostrou 11--33 \texttt{funct6} livres; \texttt{custom-0} evita colisão com futuras extensões padrão. \\
-			\textbf{3. ULA Interna} & Intermediário \texttt{double} (\texttt{libtakum}) vs.\ Inteiros 128b & \textbf{Inteiros de 128 bits (\texttt{\_\_int128})} & Elimina o duplo arredondamento em \texttt{T32} (evita 128 erros de 1~ULP perto de meio-ponto). \\
-			\textbf{4. Acúmulo \texttt{vtdot}} & Vetores completos \texttt{T64} vs.\ Escalar \texttt{vd[0]} em $2\cdot\mathrm{SEW}$ & \textbf{\texttt{vd[0]} em $\mathrm{EEW}=2\cdot\mathrm{SEW}$ (\texttt{EMUL=1})} & Permite acumular \texttt{T32} em \texttt{T64} sem exigir banco \texttt{SEW=64} nem instruções prévias de \emph{widening}. \\
-			\textbf{5. Controle CSR} & Manter \texttt{fcsr} (\texttt{frm}/\texttt{fflags}) vs.\ RNE fixo + \texttt{NaR} & \textbf{Zero dependência de \texttt{fcsr}} & Saturação determinística e \texttt{NaR} eliminam \emph{hazards} de CSR e árvore OR de exceções entre \emph{lanes}. \\
+			\textbf{3. ULA Interna} & Intermediário \texttt{double} (\texttt{libtakum}) vs.\ Inteiros 128b & \textbf{Inteiros de 128 bits (\texttt{\_\_int128})} & Elimina o duplo arredondamento em \texttt{T32} (evita 128/10.000 desvios de 1~ULP em multiplicações perto de meio-ponto). \\
+			\textbf{4. Largura do Acumulador} & Acumulador em \texttt{SEW} vs.\ $\mathrm{EEW}=2\cdot\mathrm{SEW}$ em \texttt{vd[0]} & \textbf{Largura $2\cdot\mathrm{SEW}$ (\texttt{EMUL=1})} & Reduz erro mediano em 32b em $\RazaoAcumuladorTakum\times$ frente a acumular em \texttt{T32} sem exigir banco \texttt{SEW=64}. \\
+			\textbf{5. Modelo \texttt{vtdot}} & Quire exato (sem arred.) vs.\ Dois arredondamentos & \textbf{RNE em $2\cdot\mathrm{SEW}$ + \texttt{vncvt.t.t}} & Limita estado ao registrador \texttt{vd[0]} de $2\cdot\mathrm{SEW}$ bits em vez de registrador \emph{quire} dedicado de centenas de bits. \\
+			\textbf{6. Controle CSR} & Manter \texttt{fcsr} (\texttt{frm}/\texttt{fflags}) vs.\ RNE fixo + \texttt{NaR} & \textbf{Zero dependência de \texttt{fcsr}} & Saturação determinística e \texttt{NaR} eliminam \emph{hazards} de CSR e árvore OR de exceções entre \emph{lanes}. \\
 			\bottomrule
 		\end{tabular}
 	\end{table}
@@ -155,16 +156,16 @@
 \begin{frame}{7. Fase 3: Simulador \texttt{zt-sim}, Verificação e Kernel SpMV CSR}
 	\footnotesize
 	\begin{columns}[T,onlytextwidth]
-		\begin{column}{0.51\textwidth}
+		\begin{column}{0.52\textwidth}
 			\textbf{Quatro Camadas de Verificação (0 Falhas):}
 			\begin{enumerate}
-				\item \textbf{Exaustivo \texttt{T8} + \texttt{narrow}:} $3\times 65.536$ pares e $65.536$ \texttt{T16$\to$T8} vs.\ \texttt{Fraction} (52 checks C++, 18 testes Python, 21 no \texttt{zt-test}).
-				\item \textbf{Referência externa:} 100\% idêntico à \texttt{libtakum} v2.0.0 em \texttt{T8} (196.608 pares) e \texttt{T16} (50.000).
-				\item \textbf{Oráculo \texttt{Float128}:} validado em 6.017 testes contra \texttt{\_\_float128}/\texttt{libquadmath} (GCC).
-				\item \textbf{Diferencial ISA:} \texttt{zt-sim} bate byte a byte com \texttt{QEMU 10.2.2} em $\mathrm{VLEN}\in\{128,256,512\}$ (9 execuções) e nas \textbf{\NumExecSpmv\ execuções SpMV}.
+				\item \textbf{Exaustivo + unitários:} $3\times 65.536$ pares \texttt{T8} e $65.536$ \texttt{T16$\to$T8} vs.\ \texttt{Fraction}; \textbf{81 checagens C++} (52 em \texttt{takum-test} + 29 em \texttt{zt-test}) e \textbf{75 testes Python}.
+				\item \textbf{Referência \texttt{libtakum} v2.0.0:} 0 desvios em \texttt{T8} (196.608 ops) e \texttt{T16} (50.000); \texttt{T32} (30.000 ops: 0 em add/sub, 128/10.000 em mul por empate).
+				\item \textbf{Oráculo \texttt{Float128}:} validado em \textbf{6.017 casos} contra \texttt{\_\_float128}/\texttt{libquadmath} (3 desvios de sinal de zero).
+				\item \textbf{Diferencial ISA:} \texttt{zt-sim} bate byte a byte com \texttt{QEMU 10.2.2} em $\mathrm{VLEN}\in\{128,256,512\}$ (9 execuções; \texttt{csrr vtype} antes de \texttt{vsetvli} removido pela divergência \texttt{vill=1} do QEMU 8.2.2) e nas \textbf{\NumExecSpmv\ execuções SpMV}.
 			\end{enumerate}
 		\end{column}
-		\begin{column}{0.46\textwidth}
+		\begin{column}{0.45\textwidth}
 			\textbf{Kernel SpMV CSR ($y = A\cdot x$, 8 Matrizes HB):}
 			\begin{itemize}
 				\item \textbf{Faixa \texttt{FP32} (12 instr./faixa):}\\
@@ -184,41 +185,43 @@
 	\scriptsize
 	\begin{table}
 		\centering
-		\setlength{\tabcolsep}{4.5pt}
-		\begin{tabular}{@{}lrccccc@{}}
+		\setlength{\tabcolsep}{3.5pt}
+		\begin{tabular}{@{}lrcccccc@{}}
 			\toprule
-			\textbf{Matriz HB} & \textbf{nnz} & \textbf{FP32 (ac.\ 32b)} & \textbf{Takum32 (ac.\ 64b)} & \textbf{FP32 (ac.\ 64b)} & \textbf{Takum32 (ac.\ 32b)} & \textbf{Takum32 (esc.)} \\
+			\textbf{Matriz HB} & \textbf{nnz} & \textbf{FP32 (32b)} & \textbf{Takum32 (64b)} & \textbf{FP32 (64b)} & \textbf{Takum32 (32b)} & \textbf{Posit32 (64b)} & \textbf{Takum32 (esc.)} \\
 			\midrule
-			bcsstk01 & 400 & $7.20 \times 10^{-8}$ & $5.06 \times 10^{-8}$ & $3.57 \times 10^{-8}$ & $6.22 \times 10^{-8}$ & $3.54 \times 10^{-9}$ \\
-			bcsstk02 & 4356 & $1.81 \times 10^{-7}$ & $1.88 \times 10^{-8}$ & $4.63 \times 10^{-8}$ & $8.32 \times 10^{-8}$ & $7.40 \times 10^{-9}$ \\
-			jpwh\_991 & 6027 & $6.32 \times 10^{-8}$ & $4.19 \times 10^{-9}$ & $3.47 \times 10^{-8}$ & $9.40 \times 10^{-9}$ & $4.38 \times 10^{-9}$ \\
-			pores\_1 & 180 & $3.54 \times 10^{-8}$ & $7.87 \times 10^{-8}$ & $3.26 \times 10^{-8}$ & $5.44 \times 10^{-8}$ & $5.11 \times 10^{-9}$ \\
-			sherman1 & 3750 & $5.82 \times 10^{-8}$ & $4.02 \times 10^{-9}$ & $3.65 \times 10^{-8}$ & $4.93 \times 10^{-9}$ & $5.62 \times 10^{-9}$ \\
-			well1033 & 4732 & $5.99 \times 10^{-8}$ & $4.07 \times 10^{-9}$ & $3.72 \times 10^{-8}$ & $6.45 \times 10^{-9}$ & $6.94 \times 10^{-9}$ \\
-			west0067 & 294 & $4.82 \times 10^{-8}$ & $3.59 \times 10^{-9}$ & $3.27 \times 10^{-8}$ & $4.84 \times 10^{-9}$ & $6.18 \times 10^{-9}$ \\
-			west0132 & 413 & $5.01 \times 10^{-8}$ & $3.21 \times 10^{-8}$ & $4.00 \times 10^{-8}$ & $4.94 \times 10^{-8}$ & $2.72 \times 10^{-9}$ \\
+			bcsstk01 & 400 & $7.20 \times 10^{-8}$ & $5.06 \times 10^{-8}$ & $3.57 \times 10^{-8}$ & $6.22 \times 10^{-8}$ & $3.65 \times 10^{-7}$ & $3.54 \times 10^{-9}$ \\
+			bcsstk02 & 4356 & $1.81 \times 10^{-7}$ & $1.88 \times 10^{-8}$ & $4.63 \times 10^{-8}$ & $8.32 \times 10^{-8}$ & $1.73 \times 10^{-8}$ & $7.40 \times 10^{-9}$ \\
+			jpwh\_991 & 6027 & $6.32 \times 10^{-8}$ & $4.19 \times 10^{-9}$ & $3.47 \times 10^{-8}$ & $9.40 \times 10^{-9}$ & $2.21 \times 10^{-9}$ & $4.38 \times 10^{-9}$ \\
+			pores\_1 & 180 & $3.54 \times 10^{-8}$ & $7.87 \times 10^{-8}$ & $3.26 \times 10^{-8}$ & $5.44 \times 10^{-8}$ & $9.45 \times 10^{-8}$ & $5.11 \times 10^{-9}$ \\
+			sherman1 & 3750 & $5.82 \times 10^{-8}$ & $4.02 \times 10^{-9}$ & $3.65 \times 10^{-8}$ & $4.93 \times 10^{-9}$ & $2.64 \times 10^{-9}$ & $5.62 \times 10^{-9}$ \\
+			well1033 & 4732 & $5.99 \times 10^{-8}$ & $4.07 \times 10^{-9}$ & $3.72 \times 10^{-8}$ & $6.45 \times 10^{-9}$ & $2.56 \times 10^{-9}$ & $6.94 \times 10^{-9}$ \\
+			west0067 & 294 & $4.82 \times 10^{-8}$ & $3.59 \times 10^{-9}$ & $3.27 \times 10^{-8}$ & $4.84 \times 10^{-9}$ & $2.41 \times 10^{-9}$ & $6.18 \times 10^{-9}$ \\
+			west0132 & 413 & $5.01 \times 10^{-8}$ & $3.21 \times 10^{-8}$ & $4.00 \times 10^{-8}$ & $4.94 \times 10^{-8}$ & $3.18 \times 10^{-8}$ & $2.72 \times 10^{-9}$ \\
 			\midrule
-			\textbf{Mediana} & & $\mathbf{5.91 \times 10^{-8}}$ & $\mathbf{1.15 \times 10^{-8}}$ & $3.61 \times 10^{-8}$ & $\mathbf{2.94 \times 10^{-8}}$ & $\mathbf{5.37 \times 10^{-9}}$ \\
+			\textbf{Mediana} & & $\mathbf{5.91 \times 10^{-8}}$ & $\mathbf{1.15 \times 10^{-8}}$ & $3.61 \times 10^{-8}$ & $\mathbf{2.94 \times 10^{-8}}$ & $9.98 \times 10^{-9}$ & $\mathbf{5.37 \times 10^{-9}}$ \\
 			\bottomrule
 		\end{tabular}
 	\end{table}
 	\begin{itemize}
-		\item \textbf{Decomposição rigorosa:} o ganho total de $\mathbf{\RazaoKernelTrinta\times}$ (\ParTrintaFPTakumVence/\ParTrintaFPAmbos\ vitórias) decompõe-se em $\mathbf{\RazaoFormatoAcTrinta\times}$ do \textbf{formato Takum32} (mesmo acumulador de 32b, \ParTrintaAcFPTakumVence/\ParTrintaAcFPAmbos\ vitórias) $\times$ $\mathbf{\RazaoAcumuladorTakum\times}$ do \textbf{acumulador \texttt{T64}} (\texttt{vtdot.vv}).
+		\item \textbf{Decomposição vs.\ FP32:} ganho de $\mathbf{\RazaoKernelTrinta\times}$ (\ParTrintaFPTakumVence/\ParTrintaFPAmbos\ vitórias) = $\mathbf{\RazaoFormatoAcTrinta\times}$ do formato \texttt{Takum32} (acum.\ 32b, \ParTrintaAcFPTakumVence/\ParTrintaAcFPAmbos) $\times$ $\mathbf{\RazaoAcumuladorTakum\times}$ do acumulador \texttt{T64} (\texttt{vtdot.vv}).
+		\item \textbf{Comparação com \texttt{Posit(32,2)}:} \texttt{Posit32} atinge mediana \MedPositTrinta (\ParTrintaPositOutroVence/\ParTrintaPositAmbos\ vitórias) em matrizes moderadas, enquanto \texttt{Takum32} vence em \texttt{bcsstk01} e \texttt{pores\_1}.
 	\end{itemize}
 \end{frame}
 
 % ============================================================================
 % SLIDE 10: FASE 3 (PARTE C) - RESULTADO 2: 8 E 16 BITS E 100 SUITESPARSE
 % ============================================================================
-\begin{frame}{9. Resultado 2: 8/16 Bits, Overflows e 100 Matrizes SuiteSparse}
+\begin{frame}{9. Resultado 2: 8/16 Bits, Posit, Overflows e SuiteSparse-100}
 	\small
 	\begin{itemize}
-		\item \textbf{Resiliência a Overflow (sem escala):} \texttt{E4M3} falha em \textbf{\NFEquatrom/8} matrizes e \texttt{E5M2}/\texttt{FP16} em \textbf{\NFCincodois/8}; \texttt{Takum8}, \texttt{Takum16} e \texttt{bfloat16} mantêm \textbf{100\% de resultados finitos (0/8 falhas)}.
-		\item \textbf{16 bits:} \texttt{Takum16} (\MedTakumDez) vence \texttt{bfloat16} (\MedBF) por $\mathbf{\RazaoTakumBF\times}$ (7/8) sem escala e por $\mathbf{\RazaoTakumBFScaled\times}$ (8/8) com \texttt{pow2-bound}.
-		\item \textbf{100 matrizes SuiteSparse:} \texttt{Takum16/32} evita o colapso de cauda do \texttt{Posit} (\texttt{Posit16} máx.\ $99.9\%$ vs.\ $0.85\%$ no \texttt{Takum16}).
+		\item \textbf{Resiliência a Overflow (sem escala):} \texttt{E4M3} falha em \textbf{\NFEquatrom/8} matrizes e \texttt{E5M2}/\texttt{FP16} em \textbf{\NFCincodois/8}; \texttt{Takum8}, \texttt{Takum16}, \texttt{Posit8/16} e \texttt{bfloat16} mantêm \textbf{0/8 falhas finitas}.
+		\item \textbf{16 bits:} \texttt{Takum16} (\MedTakumDez) vence \texttt{bfloat16} (\MedBF) por $\mathbf{\RazaoTakumBF\times}$ (7/8) sem escala e $\mathbf{\RazaoTakumBFScaled\times}$ (8/8) com escala; \texttt{Posit(16,2)} obtém \MedPositDez (\ParDezPositOutroVence/\ParDezPositAmbos).
+		\item \textbf{8 bits:} \texttt{Posit(8,2)} supera \texttt{Takum8} em \textbf{\ParOitoPositOutroVence/8} matrizes sem escala (\MedPositOito\ vs.\ \MedTakumOito) e \textbf{8/8} com escala (\MedPositOitoScaled\ vs.\ \MedTakumOitoScaled), pois tem maior mantissa perto de $1$.
+		\item \textbf{100 SuiteSparse (\texttt{long double} vs.\ \texttt{binary128} local):} \texttt{Takum16/32} evita o colapso de cauda do \texttt{Posit} (\texttt{Posit16} máx.\ $99.9\%$ vs.\ $0.85\%$ no \texttt{Takum16}).
 	\end{itemize}
 	\centering
-	\includegraphics[width=0.65\textwidth]{../paper/figures/error-cdf-pt.pdf}
+	\includegraphics[width=0.55\textwidth]{../paper/figures/error-cdf-pt.pdf}
 \end{frame}
 
 % ============================================================================
@@ -228,43 +231,61 @@
 	\small
 	\begin{itemize}
 		\item \textbf{Modelo analítico exato:} $N_f = r_f R + c_f S + K$ com \textbf{resíduo máximo = \ModResiduoMax} nas \ModExec\ execuções reais e \ModSinteticosOk/\ModSinteticosTotal\ sintéticas (\texttt{FP32}: $r=13, c=12$; \texttt{Takum32}: $r=14, c=11$; \texttt{Takum16}: $14, 13$; \texttt{Takum8}: $14, 12$).
-		\item \textbf{Teorema em 32 bits:} $N_{\text{Takum32}} - N_{\text{FP32}} = R - S \le 0 \implies$ \texttt{Takum32} executa menos (\InsnMenorTrinta) ou igual (\InsnIgualTrinta) instruções em \textbf{\InsnPares/\InsnPares\ pares}, mesmas escritas CSR e \textbf{$-15.6\%$ elementos ativos} (\ElemNnzTakum\ vs.\ \ElemNnzFP/nnz).
+		\item \textbf{Relação em 32 bits:} $N_{\text{Takum32}} - N_{\text{FP32}} = R - S \le 0 \implies$ \texttt{Takum32} executa menos (\InsnMenorTrinta) ou igual (\InsnIgualTrinta) instruções em \textbf{\InsnPares/\InsnPares\ pares}, mesmas escritas CSR e \textbf{$-15.6\%$ elementos ativos} (\ElemNnzTakum\ vs.\ \ElemNnzFP/nnz).
 		\item \textbf{8 e 16 bits:} índice de 32b no \texttt{vluxei32} exige 1 \texttt{vsetvli} extra/faixa, mas em $\mathrm{VLEN}=128$ o maior empacotamento reduz instruções totais em \textbf{\RelInsnDezCento} (\texttt{T16}) e \textbf{\RelInsnOitoCento} (\texttt{T8}).
 	\end{itemize}
 	\centering
-	\includegraphics[width=0.76\textwidth]{../paper/figures/insn-csr-comparison-pt.pdf}
+	\includegraphics[width=0.74\textwidth]{../paper/figures/insn-csr-comparison-pt.pdf}
 \end{frame}
 
 % ============================================================================
-% SLIDE 12: CONCLUSÃO E DEMONSTRAÇÃO FUNCIONAL AO VIVO (SEÇÃO 6.3 DO EDITAL)
+% SLIDE 12: LIMITAÇÕES E AMEAÇAS À VALIDADE
 % ============================================================================
-\begin{frame}{11. Conclusão e Demonstração Funcional ao Vivo}
-	\footnotesize
-	\begin{columns}[T,onlytextwidth]
-		\begin{column}{0.48\textwidth}
-			\textbf{Síntese das Entregas Concluídas:}
-			\begin{itemize}
-				\item \textbf{Núcleo \& ISA \texttt{Zvtakum}:} janela de 12~MSBs, ULA inteira de 128b com RNE no código e 5 instruções em \texttt{custom-0} sem \texttt{fcsr}.
-				\item \textbf{Ganhos Comprovados:} $\RazaoKernelTrinta\times$ menor erro em 32b sem exceder instruções do \texttt{FP32}; zero \emph{overflow} em 8/16b e $\RazaoTakumBF\times\text{--}\RazaoTakumBFScaled\times$ sobre \texttt{bfloat16}.
-				\item \textbf{Artigos IEEE (6 páginas):} \texttt{paper/main.pdf} (Inglês) e \texttt{paper/main\_pt.pdf} (Português).
-			\end{itemize}
-		\end{column}
-		\begin{column}{0.49\textwidth}
-			\textbf{Roteiro da Demo ao Vivo (Terminal):}
-			\begin{enumerate}
-				\item \textbf{Testes da ULA e Simulador ($< 2\text{ s}$):}\\
-				      \texttt{make test \&\& make sim-test}
-				\item \textbf{Verificação Diferencial vs.\ QEMU 10.2.2:}\\
-				      \texttt{make sim-check} \quad (9 execuções byte a byte)
-				\item \textbf{Execução de Kernel SpMV no \texttt{zt-sim}:}\\
-				      \texttt{./build/zt-sim build/spmv/bcsstk01.takum32.v256.elf -{}-vlen 256 -{}-stdout /tmp/y.bin -{}-counters /tmp/c.json \&\& cat /tmp/c.json}
-				\item \textbf{Pipeline Único Completo:}\\
-				      \texttt{python3 scripts/run\_all.py}
-			\end{enumerate}
-		\end{column}
-	\end{columns}
-	\vspace{4pt}
-	\centering \textbf{\large Obrigado! Perguntas?}
+\begin{frame}{11. Limitações e Ameaças à Validade}
+	\small
+	\begin{itemize}
+		\item \textbf{Amostra do SpMV:} o benchmark ponta a ponta cobre apenas 8 matrizes Harwell--Boeing ($30$ a $1033$ linhas); em formatos estreitos, \texttt{Posit(8,2)} e \texttt{Posit(16,2)} ainda superam \texttt{Takum} quando os pesos concentram-se perto de $1$.
+		\item \textbf{SuiteSparse-100:} os CSVs agregados foram gerados originalmente com oráculo \texttt{long double} de 80 bits; o gerador Python em \texttt{binary128} foi integrado ao repositório e validado nas 8 matrizes locais, pois o servidor remoto bloqueou o download automatizado (\texttt{HTTP 403}).
+		\item \textbf{Simulador funcional:} \texttt{zt-sim} contabiliza instruções dinâmicas e escritas CSR, sem modelar ciclos de \emph{pipeline}, área de silício, frequência máxima ou energia por operação.
+		\item \textbf{Controles em Python:} \texttt{FP8}, \texttt{FP16}, \texttt{bfloat16}, \texttt{Posit} e acumuladores de 32/64 bits rodam em referência funcional, preservando a mesma ordem de redução dos kernels simulados.
+		\item \textbf{Não comutatividade:} a redução sequencial com \texttt{vtdot.vv} (dois arredondamentos) depende da ordenação por faixas de \texttt{VLEN}.
+	\end{itemize}
+\end{frame}
+
+% ============================================================================
+% SLIDE 13: CONCLUSÃO E SÍNTESE
+% ============================================================================
+\begin{frame}{12. Conclusão e Síntese das Entregas}
+	\small
+	\begin{itemize}
+		\item \textbf{Núcleo e ISA \texttt{Zvtakum}:} janela de 12~MSBs, ULA inteira de 128b com RNE no espaço de códigos e 5 instruções em \texttt{custom-0} sem dependência de \texttt{fcsr}.
+		\item \textbf{Evidências numéricas:} no conjunto de 8 matrizes HB, \texttt{Takum32} reduz o erro mediano em $\RazaoKernelTrinta\times$ frente a \texttt{FP32} sem exceder o total de instruções; em 8/16 bits evita \emph{overflow} sem escala ($\RazaoTakumBF\times\text{--}\RazaoTakumBFScaled\times$ sobre \texttt{bfloat16}), embora \texttt{Posit8/16} ainda vença em faixas moderadas.
+		\item \textbf{Reprodutibilidade e Documentação:}
+		      \begin{itemize}
+		          \item \textbf{81 checagens C++} (52 núcleo + 29 simulador), \textbf{75 testes Python}, \textbf{0 divergências} em 9 execuções vs.\ \texttt{QEMU 10.2.2} e auditoria bibliográfica de 25 referências (\texttt{references/audit.csv}).
+		          \item Artigos IEEE de 6 páginas: \texttt{paper/main.pdf} (Inglês) e \texttt{paper/main\_pt.pdf} (Português).
+		      \end{itemize}
+	\end{itemize}
+\end{frame}
+
+% ============================================================================
+% SLIDE 14: DEMONSTRAÇÃO FUNCIONAL AO VIVO (COMANDOS REAIS)
+% ============================================================================
+\begin{frame}{13. Demonstração Funcional ao Vivo (Comandos Reais)}
+	\small
+	\begin{enumerate}
+		\item \textbf{Suíte unitária C++ e Python (81 C++ + 75 Python):}\\
+		      \texttt{make test \&\& make sim-test}\\
+		      {\footnotesize Saída esperada: \texttt{takum-test: 52 verificacoes, 0 falhas}; \texttt{zt-test: 29 verificacoes, 0 falhas}.}
+		\item \textbf{Teste diferencial byte a byte vs.\ QEMU 10.2.2:}\\
+		      \texttt{make sim-check}\\
+		      {\footnotesize Confirma \texttt{9 execucoes, 0 divergencias} para \texttt{VLEN} $\in \{128, 256, 512\}$.}
+		\item \textbf{Execução de um kernel SpMV em \texttt{Zvtakum} (\texttt{bcsstk01}, VLEN=256):}\\
+		      \texttt{./build/zt-sim build/spmv/bcsstk01.takum32.v256.elf -{}-vlen 256 -{}-stdout /tmp/y.bin -{}-counters /tmp/c.json \&\& cat /tmp/c.json}
+		\item \textbf{Demonstração interativa e checagem estrita da entrega:}\\
+		      \texttt{./run\_all.sh demo}\\
+		      \texttt{./run\_all.sh -{}-strict}
+	\end{enumerate}
 \end{frame}
 
 \end{document}

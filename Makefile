@@ -35,10 +35,12 @@ $(BUILD)/zt-test: tests/sim/test_main.cpp $(SIM_OBJ) $(LIB_OBJ)
 	@mkdir -p $(@D)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DZT_GOLDEN_DIR='"tests/sim/golden"' -o $@ tests/sim/test_main.cpp $(SIM_OBJ) $(LIB_OBJ)
 
-test: build
-	@echo "== testes C++ (vetores dourados) =="
+test: build $(BUILD)/zt-test
+	@echo "== testes C++ (núcleo Takum, 52 verificações) =="
 	./$(BUILD)/takum-test
-	@echo "== testes Python (modelo de referência) =="
+	@echo "== testes C++ (simulador Zvtakum, 29 verificações) =="
+	./$(BUILD)/zt-test
+	@echo "== testes Python (modelo de referência e baselines) =="
 	cd python && $(PYTHON) -B -m unittest discover -s tests -v
 
 golden:

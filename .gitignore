@@ -1,5 +1,7 @@
-# Artefatos de compilação
+# Artefatos de compilação e cache de matrizes baixadas
 build/
+matrices/
+artifacts/
 
 # LaTeX intermediates (the final PDFs are versioned deliverables)
 *.aux

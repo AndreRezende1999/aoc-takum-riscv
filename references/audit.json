@@ -1,0 +1,32 @@
+{
+  "bib_keys": [
+    "hunhold2024takum",
+    "hunhold2025avx102",
+    "hunhold2024vhdl",
+    "hunhold2025solvers",
+    "hunhold2025arnoldi",
+    "hunhold2025integers",
+    "gustafson2017posit",
+    "mallasen2022percival",
+    "mach2020fpnew",
+    "micikevicius2022fp8",
+    "ofp8",
+    "bfloat16",
+    "ieee754",
+    "riscv-v-spec",
+    "marcelli2025fp8spike",
+    "cococcioni2021vectorizing",
+    "kovac2023faust",
+    "duff1989hb",
+    "davis2011suitesparse",
+    "mufolab",
+    "libtakum",
+    "libposit",
+    "qemu",
+    "llvm-mc",
+    "riscv-opcodes"
+  ],
+  "missing": [],
+  "unverified": [],
+  "online": {}
+}

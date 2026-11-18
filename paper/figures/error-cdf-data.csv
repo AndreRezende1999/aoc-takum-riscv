@@ -1,10 +1,13 @@
 source,format,finite_count,total_count
 spmv_hb_none,takum32,3367,3367
+spmv_hb_none,posit32,3367,3367
 spmv_hb_none,binary32,3367,3367
 spmv_hb_none,takum16,3367,3367
+spmv_hb_none,posit16,3367,3367
 spmv_hb_none,bfloat16,3367,3367
 spmv_hb_none,binary16,3301,3367
 spmv_hb_none,takum8,3367,3367
+spmv_hb_none,posit8_2,3367,3367
 spmv_hb_none,e4m3,3206,3367
 spmv_hb_none,e5m2,3301,3367
 suitesparse100,takum32,100,100

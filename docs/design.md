@@ -204,18 +204,12 @@ no PDF antes de virarem vetores golden).
   precisavam cobrir 64 bits (acumulador do `vtdot` com SEW=32);
   `vrgather.vv` generalizado para SEW 8/16/32.
 
+- **Nota de revisão final (D11/D12, SuiteSparse e Fechamento):** os arquivos `results/suitesparse100_conversion.csv` e `results/closure_takum_linear_log.csv` permanecem preservados da rodada C11 original (`long double` de 80 bits), mas agora são acompanhados por geradores reprodutíveis em Python usando `binary128` e aritmética racional/decimal exata: `scripts/bench_closure.py` (reproduz os 28/28 registros de `closure_takum_linear_log.csv` com `Decimal`/`Fraction`) e `scripts/bench_suitesparse100.py` + `results/suitesparse100_manifest.json` (com SHA-256 das 100 matrizes e validação local `binary128` nas 8 matrizes Harwell-Boeing em `artifacts/hb_conversion_binary128.csv`, dado bloqueio HTTP 403 do servidor remoto no download em massa). Nos experimentos SpMV (`kernels/numeric_baselines.py`), a referência oficial é exclusivamente `Float128` (`takum_rvv.binary.BINARY128`).
+
 ## Riscos e pontos abertos
 
-- **Arredondamento**: ver D2; quantificar divergencia e documentar no artigo.
-- **Ghost bits**: validar codec T8/T16 contra libtakum exaustivamente.
-- **Acumulacao do vtdot**: semantica exata do produto (largura do produto e
-  momento do arredondamento) a fixar em `docs/spec/zvtakum.adoc`; validar
-  contra calculo em float128.
-- **Fechamento (Sec. 5.6)**: replicar com RNE pode deslocar porcentagens.
-- **Transcricao `artigos.md`**: reconferir tabelas 4/5/6 no PDF antes de
-  usar como vetores de teste.
-- **Matplotlib ausente**: instalar com `pip3 install --user matplotlib` na
-  fase de analise.
+- **Itens já equacionados na entrega final (ver `docs/decisoes.md`):** arredondamento e duplo arredondamento via host documentados (`128/10.000` multiplicações `T32` vs.\ `libtakum`); codec `T8/T16/T32` validado exaustivamente em `T8` e em amostras `T16/T32` contra `libtakum` e `libquadmath` (`docs/evidencias/`, `python/tests/data/`); semântica de dois arredondamentos em `vtdot` especificada em `docs/spec/zvtakum.adoc`; fechamento replicado em Python exato (`scripts/bench_closure.py`).
+- **Pendências remanescentes de escopo:** download completo offline das 100 matrizes SuiteSparse (bloqueado por HTTP 403 no host remoto) e ausência de modelagem de ciclos/área/energia em silício no simulador funcional `zt-sim`.
 
 ## Referencias
 
