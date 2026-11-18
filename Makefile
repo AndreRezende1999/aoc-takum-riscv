@@ -6,7 +6,7 @@
 CXX      ?= c++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -Werror -ffp-contract=off
 CPPFLAGS += -Iinclude
-PYTHON   ?= python3
+PYTHON   ?= $(shell python3 -c "import matplotlib" >/dev/null 2>&1 && echo python3 || echo /usr/bin/python3)
 BUILD    := build
 LIB_OBJ  := $(BUILD)/takum.o
 SIM_OBJ  := $(BUILD)/machine.o

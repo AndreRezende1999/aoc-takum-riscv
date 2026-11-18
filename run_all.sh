@@ -15,6 +15,11 @@ ARTIFACTS="$ROOT/artifacts"
 LOGS="$ARTIFACTS/logs"
 mkdir -p "$LOGS"
 
+PYTHON="${PYTHON:-python3}"
+if ! "$PYTHON" -c "import matplotlib" >/dev/null 2>&1 && [[ -x /usr/bin/python3 ]]; then
+    PYTHON="/usr/bin/python3"
+fi
+
 STRICT=0
 FULL=0
 COMMAND="all"
@@ -107,7 +112,7 @@ run_bench() {
     fi
 
     log "figuras e diagramas"
-    python3 "$ROOT/paper/gera_figuras.py" 2>&1 | tee "$LOGS/figures.log"
+    "$PYTHON" "$ROOT/paper/gera_figuras.py" 2>&1 | tee "$LOGS/figures.log"
     if have pdflatex; then
         for tex in datapath_zvtakum.tex datapath_zvtakum_pt.tex zvtakum-datapath.tex zvtakum-datapath-pt.tex; do
             if [[ -f "$ROOT/paper/figures/$tex" ]]; then
