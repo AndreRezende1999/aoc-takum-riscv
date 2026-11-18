@@ -7,16 +7,14 @@ Este repositório implementa e avalia a aritmética **Takum** (variante linear, 
 - **`main` (Código, Testes, Benchmarks e Geração de Figuras):** Núcleo aritmético Takum em inteiros de 128 bits (`T8`, `T16`, `T32` e acumulação `T64`), modelo de referência em racionais exatos (`Fraction`), simulador funcional `zt-sim` (`RV64IM + Zicsr + RVV 1.0 + Zvtakum`), verificação diferencial contra `QEMU 10.2.2`, kernels SpMV CSR, baselines numéricos (`IEEE FP16/FP32`, `bfloat16`, `OFP8 E4M3/E5M2`, `Posit (es=2)`, `Takum Logarítmico`), benchmark SuiteSparse-100 e scripts de geração de gráficos e diagramas (`paper/gera_figuras.py` e `paper/figures/`).
 - **`docs` (Artigos IEEE e Slides Beamer):** Contém adicionalmente os relatórios técnicos finais no formato IEEE Conference de 6 páginas em **Inglês** (`paper/main.pdf`) e **Português** (`paper/main_pt.pdf`), a apresentação em Beamer (`slides/slides.pdf`) e o roteiro de apresentação (`slides/roteiro.md`).
 
-## Equipe e Registro de Contribuições
+## Equipe
 
-| Nome | Matrícula | Registro no projeto |
-|---|---|---|
-| André Luís Alves Rezende | 2018104050 | Integrante da equipe (autor do único usuário com commits registrados no histórico Git) |
-| Gabriel Ramos Fontes | 2022055939 | Integrante da equipe |
-| Isadora Maria Carvalho Lopes | 2022421544 | Integrante da equipe |
-| João Pedro Santos de Brito | 2023038302 | Integrante da equipe |
-
-> **Nota sobre rastreabilidade no Git:** o histórico de commits do repositório encontra-se registrado sob um único usuário (`AndreRezende1999`), não permitindo corroborar a divisão individual de autoria pelo `git log`. Recomenda-se que cada integrante registre suas contribuições em commits próprios para documentar a participação individual no desenvolvimento.
+| Nome | Matrícula |
+|---|---|
+| André Luís Alves Rezende | 2018104050 |
+| Gabriel Ramos Fontes | 2022055939 |
+| Isadora Maria Carvalho Lopes | 2022421544 |
+| João Pedro Santos de Brito | 2023038302 |
 
 ## Execução Unificada e Comandos Principais
 
