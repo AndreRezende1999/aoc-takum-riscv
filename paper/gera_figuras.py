@@ -95,8 +95,8 @@ def ieee_sig_bits(exp_bits: int, frac_bits: int, exp2: np.ndarray, finite_only: 
 
 def generate_tapered_precision(lang: str = "en") -> None:
     """Plot significant precision bits vs log10(|x|) for 8, 16, and 32-bit formats."""
-    fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.35), sharey=False)
-    exp2_wide = np.linspace(-260, 260, 1041)
+    fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.45), sharey=False)
+    exp2_wide = np.linspace(-260, 260, 4161)
     log10_x = exp2_wide * math.log10(2.0)
 
     t8 = "(a) 8-bit Formats" if lang == "en" else "(a) Formatos de 8 bits"
@@ -105,6 +105,9 @@ def generate_tapered_precision(lang: str = "en") -> None:
     ylab = "Significant precision (bits)" if lang == "en" else "Precisão significativa (bits)"
     suffix = "" if lang == "en" else "-pt"
 
+    xticks = [-75, -20, -5, 0, 5, 20, 75]
+    xtick_labels = ["-75", "-20", "-5", "0", "5", "20", "75"]
+
     # Panel (a): 8-bit
     ax = axes[0]
     ax.plot(log10_x, takum_sig_bits(8, exp2_wide), color="#006d77", lw=1.8, label="Takum8")
@@ -112,11 +115,9 @@ def generate_tapered_precision(lang: str = "en") -> None:
     ax.plot(log10_x, ieee_sig_bits(4, 3, exp2_wide, finite_only=True), color="#2563eb", lw=1.5, ls="-.", label="OFP8 E4M3")
     ax.plot(log10_x, ieee_sig_bits(5, 2, exp2_wide), color="#dc2626", lw=1.4, ls=":", label="OFP8 E5M2")
     ax.set_title(t8)
-    ax.set_xlabel(r"$\log_{10}|x|$")
     ax.set_ylabel(ylab)
-    ax.set_xlim(-82, 82)
     ax.set_ylim(-0.2, 5.4)
-    ax.legend(loc="upper left", frameon=True, framealpha=0.92, fontsize=6.4)
+    ax.legend(loc="upper left", frameon=True, framealpha=0.92, fontsize=5.5, handlelength=1.3, borderpad=0.3, labelspacing=0.25)
 
     # Panel (b): 16-bit
     ax = axes[1]
@@ -125,10 +126,8 @@ def generate_tapered_precision(lang: str = "en") -> None:
     ax.plot(log10_x, ieee_sig_bits(5, 10, exp2_wide), color="#2563eb", lw=1.5, ls="-.", label="IEEE FP16")
     ax.plot(log10_x, ieee_sig_bits(8, 7, exp2_wide), color="#dc2626", lw=1.4, ls=":", label="bfloat16")
     ax.set_title(t16)
-    ax.set_xlabel(r"$\log_{10}|x|$")
-    ax.set_xlim(-82, 82)
     ax.set_ylim(0, 14.5)
-    ax.legend(loc="upper left", frameon=True, framealpha=0.92, fontsize=6.4)
+    ax.legend(loc="lower center", frameon=True, framealpha=0.92, fontsize=5.6, handlelength=1.4, borderpad=0.3, labelspacing=0.25)
 
     # Panel (c): 32-bit
     ax = axes[2]
@@ -136,10 +135,19 @@ def generate_tapered_precision(lang: str = "en") -> None:
     ax.plot(log10_x, posit_sig_bits(32, 2, exp2_wide), color="#d97706", lw=1.4, ls="--", label="Posit32 (es=2)")
     ax.plot(log10_x, ieee_sig_bits(8, 23, exp2_wide), color="#2563eb", lw=1.5, ls="-.", label="IEEE FP32")
     ax.set_title(t32)
-    ax.set_xlabel(r"$\log_{10}|x|$")
-    ax.set_xlim(-82, 82)
     ax.set_ylim(10, 30.5)
-    ax.legend(loc="lower right", frameon=True, framealpha=0.92, fontsize=6.4)
+    ax.legend(loc="lower center", frameon=True, framealpha=0.92, fontsize=5.6, handlelength=1.4, borderpad=0.3, labelspacing=0.25)
+
+    # Apply unified symmetric-log X scale centered on [-5, 5] across all three panels
+    for ax in axes:
+        ax.set_xscale("symlog", linthresh=5.0, linscale=1.5)
+        ax.set_xlim(-82, 82)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xtick_labels)
+        ax.minorticks_off()
+        ax.set_xlabel(r"$\log_{10}|x|$ (symlog)")
+        ax.axvline(-5.0, color="#94a3b8", lw=0.7, ls=":", alpha=0.6)
+        ax.axvline(5.0, color="#94a3b8", lw=0.7, ls=":", alpha=0.6)
 
     fig.tight_layout(pad=0.6)
     for ext in ("pdf", "svg"):

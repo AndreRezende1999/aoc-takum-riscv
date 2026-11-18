@@ -60,11 +60,11 @@
 \begin{frame}{2. Fase 1: Codificação Takum Linear (Def. 8) e Janela de 12 MSBs}
 	\scriptsize
 	\begin{itemize}
-		\item \textbf{Extração unificada $(S, D, R, C, F)$:} $r = 7 - \mathrm{uint}(R)$ ($D=0$) ou $\mathrm{uint}(R)$ ($D=1$) $\implies L_{\max} = 1 + 1 + 3 + 7 = \mathbf{12\text{ bits}}$ em qualquer largura (\texttt{T8} recebe 4 \emph{ghost bits} à direita; faixa $\approx 10^{\pm 72}$ em \texttt{T8} e $10^{\pm 77}$ em \texttt{T16/T32}).
-		\item \textbf{Valor exato em complemento de dois:} $v = (-1)^S (1 - 3S + \mathrm{uint}(F)/2^p)\cdot 2^{(-1)^S(c+S)}$; especiais únicos $0$ (\texttt{0...0}) e \texttt{NaR} (\texttt{10...0}), sem infinito e sem subnormais.
+		\item \textbf{Extração unificada $(S, D, R, C, F)$:} $r = 7 - \mathrm{uint}(R)$ ($D=0$) ou $\mathrm{uint}(R)$ ($D=1$) $\implies L_{\max} = 1 + 1 + 3 + 7 = \mathbf{12\text{ bits}}$ (\texttt{T8} recebe 4 \emph{ghost bits}; faixa $\approx 10^{\pm 72}$ em \texttt{T8} e $10^{\pm 77}$ em \texttt{T16/T32}).
+		\item \textbf{Compromisso na região central ($|\log_{10}|x||\le 5$):} em $[0{,}5,2)$ ambos \texttt{Takum} e \texttt{Posit} atingem $n-4$ bits; entre $0{,}3\text{ e }4{,}8$ décadas, \texttt{Posit(n,2)} mantém 1--2 bits extras antes do colapso nas caudas, onde \texttt{Takum16/32} preservam pisos de 5 e 21 bits.
 	\end{itemize}
 	\centering
-	\includegraphics[width=0.86\textwidth]{../paper/figures/tapered-precision-pt.pdf}
+	\includegraphics[width=0.84\textwidth]{../paper/figures/tapered-precision-pt.pdf}
 \end{frame}
 
 % ============================================================================

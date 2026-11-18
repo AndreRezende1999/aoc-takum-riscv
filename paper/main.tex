@@ -57,8 +57,8 @@ IEEE~754 binary formats~\cite{ieee754} partition words into fixed sign, exponent
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.75\textwidth]{figures/tapered-precision.pdf}
-\caption{Significant precision ($1+p$ bits) vs.\ scale ($\log_{10}|x|$) across 8-, 16-, and 32-bit formats. Takum retains tapered resolution near unity while spanning $\approx 10^{\pm 72}$ (\texttt{T8}) to $10^{\pm 77}$ (\texttt{T16/T32}) via a fixed 12-MSB header, avoiding posit precision collapse at extreme scales.}
+\includegraphics[width=0.72\textwidth]{figures/tapered-precision.pdf}
+\caption{Significant precision ($1+p$ bits) vs.\ scale ($\log_{10}|x|$, \texttt{symlog} on $|\log_{10}|x||\le 5$) across 8--32 bits. Centrally, \texttt{Posit} ($es=2$) keeps higher moderate-range precision and \texttt{OFP8}/\texttt{FP16} end by $\pm 4.8$, while Takum spans $\approx 10^{\pm 72}$--$10^{\pm 77}$ via 12~MSBs.}
 \label{fig:tapered}
 \end{figure*}
 
@@ -77,7 +77,7 @@ In the linear Takum variant (Definition~8 of~\cite{hunhold2024takum}) selected f
 \begin{equation}
     v = (-1)^S \left(1 - 3S + \frac{\mathrm{uint}(F)}{2^p}\right) \cdot 2^{(-1)^S (c + S)},
 \end{equation}
-which decomposes into integer significand $N = 2^p + F$ ($S=0$) or $N = 2^{p+1} - F$ ($S=1$) scaled by $2^{c-p}$ or $2^{-(c+1)-p}$. Figure~\ref{fig:tapered} shows that Takum provides higher precision near unity than \texttt{FP16}, \texttt{bfloat16}, and \texttt{FP32} (12 bits in \texttt{T16}, 28 bits in \texttt{T32}) and maintains tail floors of 5 bits (\texttt{T16}) and 21 bits (\texttt{T32}) across $\approx 10^{\pm 77}$. In contrast, logarithmic Takum (Definition~2 of~\cite{hunhold2024takum}, $v = (-1)^S \exp(\ell/2)$) turns multiplication and inversion into bit-string integer additions (reaching 41.2\% in \texttt{T8} and 36.7\% in \texttt{T16} multiplicative closure vs.\ 33.7\% and 1.2\% for linear Takum in our closure benchmark), while addition requires Gaussian-logarithm lookup tables ($\Delta_\pm$). Linear Takum keeps integer add/multiply datapaths aligned with standard RVV vector lanes~\cite{hunhold2025avx102}.
+which decomposes into integer significand $N = 2^p + F$ ($S=0$) or $N = 2^{p+1} - F$ ($S=1$) scaled by $2^{c-p}$ or $2^{-(c+1)-p}$. Using a \texttt{symlog} axis centered on $|\log_{10}|x||\le 5$, Figure~\ref{fig:tapered} exposes the central-region trade-off: at $|x|\in[0.5,2)$, \texttt{Takum} and \texttt{Posit} ($es=2$) tie at $n-4$ significant bits (4, 12, and 28, above \texttt{FP16}, \texttt{bfloat16}, and \texttt{FP32}). Across $0.3\lesssim|\log_{10}|x||\lesssim 4.8$, Takum's fixed $(D,R)$ bits expand $r$ right past $2^{\pm 1}$, whereas \texttt{Posit}'s compact unary prefix keeps 1 to 2 extra bits over $[2^{-4},2^4)$ before dropping sharply; past $|\log_{10}|x||\le 5$, \texttt{OFP8}/\texttt{FP16} overflow while \texttt{Takum16/32} sustain 5- and 21-bit floors out to $\approx 10^{\pm 77}$. Conversely, logarithmic Takum (Definition~2~\cite{hunhold2024takum}, $v = (-1)^S \exp(\ell/2)$) turns multiplies/inversions into integer additions (41.2\% in \texttt{T8} and 36.7\% in \texttt{T16} multiplicative closure vs.\ 33.7\% and 1.2\% for linear Takum), yet needs $\Delta_\pm$ lookup tables for addition, whereas linear Takum matches RVV integer lanes~\cite{hunhold2025avx102}.
 
 \section{Related Work}
 Hunhold~\cite{hunhold2025avx102} showed that replacing multiple SIMD formats in Intel AVX10.2 with Takum simplifies opcode tables and improves accuracy across 1,401 SuiteSparse matrices~\cite{davis2011suitesparse,mufolab}. His VHDL Takum codec~\cite{hunhold2024vhdl} achieved up to 38\% lower latency and 50\% fewer LUTs than posit codecs. Follow-up studies on sparse linear solvers~\cite{hunhold2025solvers}, implicitly restarted Arnoldi eigensolvers~\cite{hunhold2025arnoldi}, and consecutive integer representations~\cite{hunhold2025integers} evaluated Takum against \texttt{bfloat16}, \texttt{OFP8}, and posits in software. Within RISC-V, PERCIVAL~\cite{mallasen2022percival} and Cococcioni et al.~\cite{cococcioni2021vectorizing} integrated scalar and vector posit units with quires; FPnew~\cite{mach2020fpnew} and FAUST~\cite{kovac2023faust} built transprecision IEEE vector FPUs; and Marcelli et al.~\cite{marcelli2025fp8spike} extended the Spike simulator with 8-bit SoftFloat instructions. Our \texttt{Zvtakum} design differs by targeting unified-width Takum vector arithmetic over RVV~1.0 using an exact 128-bit integer ALU and differential validation against QEMU and \texttt{libtakum}.
@@ -153,7 +153,7 @@ Table~\ref{tab:precisao816} compares 8- and 16-bit formats with and without scal
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.75\textwidth]{figures/error-cdf.pdf}
+\includegraphics[width=0.72\textwidth]{figures/error-cdf.pdf}
 \caption{Empirical CDFs: (a) componentwise SpMV row errors against \texttt{Float128} across 8 Harwell-Boeing matrices (94,276 row evaluations; unscaled \texttt{E4M3}, \texttt{E5M2}, and \texttt{FP16} plateau below 1.0 due to overflows), and (b) matrix conversion $\ell_2$ error across 100 SuiteSparse matrices (80-bit \texttt{long double} reference) comparing 15 formats including \texttt{Posit} ($es=2$) and logarithmic Takum.}
 \label{fig:error_cdf}
 \end{figure*}
