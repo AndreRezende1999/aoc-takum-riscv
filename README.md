@@ -2,11 +2,6 @@
 
 Este repositório implementa e avalia a aritmética **Takum** (variante linear, Definição 8 de Hunhold, 2024) acoplada à Extensão Vetorial RISC-V (**RVV 1.0**) por meio da subextensão experimental **`Zvtakum`**.
 
-## Estrutura de Branches
-
-- **`main` (Código, Testes, Benchmarks e Geração de Figuras):** Núcleo aritmético Takum em inteiros de 128 bits (`T8`, `T16`, `T32` e acumulação `T64`), modelo de referência em racionais exatos (`Fraction`), simulador funcional `zt-sim` (`RV64IM + Zicsr + RVV 1.0 + Zvtakum`), verificação diferencial contra `QEMU 10.2.2`, kernels SpMV CSR, baselines numéricos (`IEEE FP16/FP32`, `bfloat16`, `OFP8 E4M3/E5M2`, `Posit (es=2)`, `Takum Logarítmico`), benchmark SuiteSparse-100 e scripts de geração de gráficos e diagramas (`paper/gera_figuras.py` e `paper/figures/`).
-- **`docs` (Artigos IEEE e Slides Beamer):** Contém adicionalmente os relatórios técnicos finais no formato IEEE Conference de 6 páginas em **Inglês** (`paper/main.pdf`) e **Português** (`paper/main_pt.pdf`), a apresentação em Beamer (`slides/slides.pdf`) e o roteiro de apresentação (`slides/roteiro.md`).
-
 ## Equipe
 
 | Nome | Matrícula |
@@ -53,4 +48,3 @@ python3 tools/make_manifest.py      # Emite artifacts/manifest.json e artifacts/
 | Geração de figuras e diagramas TikZ (EN e PT) | `paper/gera_figuras.py`, `paper/figures/` |
 | Script mestre, evidências e auditoria | `run_all.sh`, `scripts/run_all.py`, `scripts/bench_closure.py`, `scripts/bench_suitesparse100.py`, `tools/check_references.py`, `tools/make_manifest.py`, `references/audit.csv`, `docs/evidencias/` |
 | Documentação técnica e especificação da ISA | `docs/fase1.md`, `docs/arquitetura.md`, `docs/decisoes.md`, `docs/design.md`, `docs/rvv-restructuring.md`, `docs/spec/zvtakum.adoc`, `docs/opcodes/zvtakum.opcodes` |
-| Artigos IEEE (EN/PT) e Apresentação Beamer | Branch `docs` (`https://github.com/AndreRezende1999/aoc-takum-riscv/tree/docs`) |
